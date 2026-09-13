@@ -43,7 +43,7 @@ import {
 } from '@tanstack/react-query';
 import { useSettings } from '../contexts';
 import { useWallet } from '../contexts/wallet';
-import { getContractTokenIcon } from '../external/icon-map';
+import { getContractTokenIcon, getStellarAssetTokenIcon } from '../external/icon-map';
 import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
 import {
@@ -719,6 +719,9 @@ function createTokenMetadataQuery(
       let tomlMetadata: TomlMetadata;
       if (tokenMetadata.asset !== undefined) {
         tomlMetadata = await getTokenMetadataFromTOML(horizon, tokenMetadata);
+        tomlMetadata.image =
+          getStellarAssetTokenIcon(tokenMetadata.asset.code, tokenMetadata.asset.issuer) ??
+          tomlMetadata.image;
       } else {
         tomlMetadata = {
           domain: undefined,
