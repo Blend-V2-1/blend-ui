@@ -9,9 +9,9 @@ import {
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
-import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
+import { AppImage as Image } from '../common/AppImage';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import {
   useHorizonAccount,

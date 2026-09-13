@@ -1,5 +1,5 @@
 import { Box, SxProps, Theme } from '@mui/material';
-import Image from 'next/image';
+import { AppImage as Image } from './AppImage';
 
 export interface IconProps {
   src: string;

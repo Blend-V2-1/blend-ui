@@ -11,7 +11,6 @@ import {
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
-import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
@@ -22,6 +21,7 @@ import { estAuction } from '../../utils/auction';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
 import { getErrorFromSim } from '../../utils/txSim';
+import { AppImage as Image } from '../common/AppImage';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { DividerSection } from '../common/DividerSection';
 import { InputBar } from '../common/InputBar';

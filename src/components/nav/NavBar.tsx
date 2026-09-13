@@ -1,8 +1,8 @@
 import { Version } from '@blend-capital/blend-sdk';
 import { Box, IconButton } from '@mui/material';
-import Image from 'next/image';
 import { ViewType, useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
+import { AppImage as Image } from '../common/AppImage';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { SectionBase } from '../common/SectionBase';
