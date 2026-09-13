@@ -1,6 +1,7 @@
 import { Pool } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
+import { getPoolDeployment } from '../../hooks/types';
 import { BidListItem } from './BidListItem';
 
 export interface BidListProps extends BoxProps {
@@ -77,6 +78,7 @@ export const BidList: React.FC<BidListProps> = ({ pool, bid, type, bidValue }) =
           type={type}
           amount={amount}
           oracleValue={bidValue.get(asset)}
+          deployment={getPoolDeployment(pool.metadata)}
         />
       ))}
     </Box>

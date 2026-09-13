@@ -27,7 +27,12 @@ import {
 import React, { useContext, useEffect, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
 import { useQueryClientCacheCleaner } from '../hooks/api';
-import { PoolMeta } from '../hooks/types';
+import { getBackstopId, PoolMeta } from '../hooks/types';
+import {
+  BLNT_BACKFILL_ID,
+  buildClaimBackfillOperation,
+  buildSwapBlndForBlntOperation,
+} from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
 import { useSettings } from './settings';
 
@@ -88,6 +93,15 @@ export interface IWalletContext {
   backstopClaim(
     poolMeta: PoolMeta,
     args: BackstopClaimV1Args | BackstopClaimV2Args,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backfillSwapBlndForBlnt(
+    user: string,
+    blntAmount: bigint,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   cometSingleSidedDeposit(
@@ -586,7 +600,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const backstop =
         poolMeta.version === Version.V2
-          ? new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '')
+          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
           : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
       const operation = xdr.Operation.fromXDR(backstop.deposit(args), 'base64');
       if (sim) {
@@ -617,7 +631,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const backstop =
         poolMeta.version === Version.V2
-          ? new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '')
+          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
           : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
       const operation = xdr.Operation.fromXDR(backstop.withdraw(args), 'base64');
       if (sim) {
@@ -648,7 +662,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const backstop =
         poolMeta.version === Version.V2
-          ? new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '')
+          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
           : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
       const operation = xdr.Operation.fromXDR(backstop.queueWithdrawal(args), 'base64');
       if (sim) {
@@ -678,7 +692,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       const backstop =
         poolMeta.version === Version.V2
-          ? new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '')
+          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
           : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
       const operation = xdr.Operation.fromXDR(backstop.dequeueWithdrawal(args), 'base64');
       if (sim) {
@@ -708,7 +722,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (connected) {
       let operation = '';
       if (poolMeta.version === Version.V2) {
-        operation = new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '').claim(
+        operation = new BackstopContractV2(getBackstopId(poolMeta.deployment)).claim(
           claimArgs as BackstopClaimV2Args
         );
       } else {
@@ -726,6 +740,37 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         cleanBackstopPoolCache(claimArgs.pool_addresses[0].toString());
       }
       cleanBackstopCache();
+      cleanWalletCache();
+    }
+  }
+
+  /** Claim the connected wallet's currently vested BLNT backfill allocation. */
+  async function backfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildClaimBackfillOperation(BLNT_BACKFILL_ID, user);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
+  /** Burn two legacy BLND for each pre-funded BLNT sent to the connected wallet. */
+  async function backfillSwapBlndForBlnt(
+    user: string,
+    blntAmount: bigint,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildSwapBlndForBlntOperation(BLNT_BACKFILL_ID, user, blntAmount);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
       cleanWalletCache();
     }
   }
@@ -897,6 +942,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopQueueWithdrawal,
         backstopDequeueWithdrawal,
         backstopClaim,
+        backfillClaim,
+        backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,
         cometExit,

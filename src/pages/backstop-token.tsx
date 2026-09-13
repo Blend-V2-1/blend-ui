@@ -1,7 +1,7 @@
-import { Version } from '@blend-capital/blend-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { IconButton, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
+import { useRouter } from 'next/router';
 import { BackstopExitAnvil } from '../components/backstop/BackstopExitAnvil';
 import { BackstopJoinAnvil } from '../components/backstop/BackstopJoinAnvil';
 import { Divider } from '../components/common/Divider';
@@ -13,20 +13,32 @@ import { StackedText } from '../components/common/StackedText';
 import { ToggleButton } from '../components/common/ToggleButton';
 import { ViewType, useSettings } from '../contexts';
 import { useBackstop, useHorizonAccount, useTokenBalance } from '../hooks/api';
+import { getEmissionSymbol, PoolDeployment } from '../hooks/types';
 import { toBalance } from '../utils/formatter';
-import { BLND_ASSET, USDC_ASSET } from '../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../utils/token_display';
 
 const BackstopToken: NextPage = () => {
   const theme = useTheme();
   const { showJoinPool, setShowJoinPool, viewType, network } = useSettings();
+  const router = useRouter();
+  const deployment =
+    router.query.deployment === PoolDeployment.V21
+      ? PoolDeployment.V21
+      : router.query.deployment === PoolDeployment.V2
+      ? PoolDeployment.V2
+      : PoolDeployment.V1;
+  const emissionAsset = deployment === PoolDeployment.V21 ? BLNT_ASSET : BLND_ASSET;
+  const usdcAsset = deployment === PoolDeployment.V21 ? V21_USDC_ASSET : USDC_ASSET;
+  const emissionSymbol = getEmissionSymbol(deployment);
+  const lpSymbol = `${emissionSymbol}-USDC LP`;
 
-  const BLND_CONTRACT_ID = BLND_ASSET.contractId(network.passphrase);
-  const USDC_CONTRACT_ID = USDC_ASSET.contractId(network.passphrase);
+  const BLND_CONTRACT_ID = emissionAsset.contractId(network.passphrase);
+  const USDC_CONTRACT_ID = usdcAsset.contractId(network.passphrase);
 
-  const { data: backstop } = useBackstop(Version.V1);
+  const { data: backstop } = useBackstop(deployment);
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(BLND_CONTRACT_ID, BLND_ASSET, horizonAccount);
-  const { data: usdcBalanceRes } = useTokenBalance(USDC_CONTRACT_ID, USDC_ASSET, horizonAccount);
+  const { data: blndBalanceRes } = useTokenBalance(BLND_CONTRACT_ID, emissionAsset, horizonAccount);
+  const { data: usdcBalanceRes } = useTokenBalance(USDC_CONTRACT_ID, usdcAsset, horizonAccount);
   const { data: lpBalanceRes } = useTokenBalance(
     backstop?.backstopToken?.id ?? '',
     undefined,
@@ -49,7 +61,8 @@ const BackstopToken: NextPage = () => {
     }
   };
 
-  const title = viewType === ViewType.MOBILE ? 'BLND-USDC LP' : '80:20 BLND-USDC Liquidity Pool';
+  const title =
+    viewType === ViewType.MOBILE ? lpSymbol : `80:20 ${emissionSymbol}-USDC Liquidity Pool`;
 
   return (
     <>
@@ -148,7 +161,7 @@ const BackstopToken: NextPage = () => {
         >
           <Icon src={'/icons/tokens/blnd.svg'} alt={`blnd icon`} sx={{ marginRight: '12px' }} />
           <StackedText
-            title="Your BLND Balance"
+            title={`Your ${emissionSymbol} Balance`}
             titleColor="inherit"
             text={toBalance(blndBalance, 7)}
             textColor="inherit"
@@ -174,7 +187,11 @@ const BackstopToken: NextPage = () => {
         </Section>
       </Row>
 
-      {showJoinPool ? <BackstopJoinAnvil /> : <BackstopExitAnvil />}
+      {showJoinPool ? (
+        <BackstopJoinAnvil key={deployment} deployment={deployment} />
+      ) : (
+        <BackstopExitAnvil key={deployment} deployment={deployment} />
+      )}
     </>
   );
 };

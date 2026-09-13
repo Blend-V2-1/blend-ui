@@ -3,7 +3,7 @@ import { useMediaQuery, useTheme } from '@mui/material';
 import { Horizon, rpc } from '@stellar/stellar-sdk';
 import React, { useContext, useMemo, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
-import { PoolMeta } from '../hooks/types';
+import { getPoolDeployment, PoolDeployment, PoolMeta } from '../hooks/types';
 
 const DEFAULT_RPC = process.env.NEXT_PUBLIC_RPC_URL || 'https://soroban-testnet.stellar.org';
 const DEFAULT_HORIZON =
@@ -21,6 +21,7 @@ export interface TrackedPool {
   id: string;
   name: string;
   version: Version;
+  deployment: PoolDeployment;
 }
 
 export interface NetworkUrls {
@@ -38,6 +39,7 @@ export interface ISettingsContext {
   getHorizonServer: () => rpc.Server;
   lastPool: TrackedPool | undefined;
   setLastPool: (poolMeta: PoolMeta) => void;
+  configuredPools: TrackedPool[];
   trackedPools: TrackedPool[];
   trackPool: (poolMeta: PoolMeta) => void;
   untrackPool: (id: string) => void;
@@ -47,6 +49,7 @@ export interface ISettingsContext {
   setShowJoinPool: (showJoinPool: boolean) => void;
   blockedPools: string[];
   isV2Enabled: boolean;
+  isV21Enabled: boolean;
 }
 
 const SettingsContext = React.createContext<ISettingsContext | undefined>(undefined);
@@ -68,20 +71,44 @@ export const SettingsProvider = ({ children = null as any }) => {
 
   const lastPool = useMemo(() => {
     try {
-      return lastPoolString ? (JSON.parse(lastPoolString) as TrackedPool) : undefined;
+      if (!lastPoolString) return undefined;
+      const pool = JSON.parse(lastPoolString) as TrackedPool;
+      return { ...pool, deployment: getPoolDeployment(pool) ?? PoolDeployment.V1 };
     } catch (e) {
       console.warn('Failed to parse lastPool:', e);
       return undefined;
     }
   }, [lastPoolString]);
-  const trackedPools = useMemo(() => {
+  const storedPools = useMemo(() => {
     try {
-      return JSON.parse(trackedPoolsString ?? '[]') as TrackedPool[];
+      return (JSON.parse(trackedPoolsString ?? '[]') as TrackedPool[]).map((pool) => ({
+        ...pool,
+        deployment: getPoolDeployment(pool) ?? PoolDeployment.V1,
+      }));
     } catch (e) {
       console.warn('Failed to parse trackedPools:', e);
       return [];
     }
   }, [trackedPoolsString]);
+  const configuredPools = useMemo(() => {
+    try {
+      return (JSON.parse(process.env.NEXT_PUBLIC_CONFIGURED_POOLS ?? '[]') as TrackedPool[]).map(
+        (pool) => ({
+          ...pool,
+          version: pool.version ?? Version.V2,
+          deployment: pool.deployment ?? PoolDeployment.V21,
+        })
+      );
+    } catch (e) {
+      console.warn('Failed to parse NEXT_PUBLIC_CONFIGURED_POOLS:', e);
+      return [];
+    }
+  }, []);
+  const trackedPools = useMemo(() => {
+    const pools = new Map(storedPools.map((pool) => [pool.id, pool]));
+    configuredPools.forEach((pool) => pools.set(pool.id, pool));
+    return Array.from(pools.values());
+  }, [configuredPools, storedPools]);
   const network = useMemo(() => {
     try {
       let urls = JSON.parse(networkString ?? '{}') as NetworkUrls;
@@ -107,6 +134,7 @@ export const SettingsProvider = ({ children = null as any }) => {
   );
 
   const isV2Enabled = process.env.NEXT_PUBLIC_BACKSTOP_V2 !== undefined;
+  const isV21Enabled = process.env.NEXT_PUBLIC_BACKSTOP_V21 !== undefined;
 
   let viewType: ViewType;
   if (mobile) viewType = ViewType.MOBILE;
@@ -134,37 +162,52 @@ export const SettingsProvider = ({ children = null as any }) => {
   }
 
   function trackPool(poolMeta: PoolMeta) {
-    let index = trackedPools.findIndex((pool) => pool.id === poolMeta.id);
+    let index = storedPools.findIndex((pool) => pool.id === poolMeta.id);
     if (index !== -1) {
       if (
-        trackedPools[index].version !== poolMeta.version ||
-        trackedPools[index].name !== poolMeta.name
+        storedPools[index].version !== poolMeta.version ||
+        storedPools[index].deployment !== poolMeta.deployment ||
+        storedPools[index].name !== poolMeta.name
       ) {
-        trackedPools[index].version = poolMeta.version;
-        trackedPools[index].name = poolMeta.name;
-        setTrackedPoolsString(JSON.stringify(trackedPools));
+        const updated = [...storedPools];
+        updated[index] = {
+          id: poolMeta.id,
+          name: poolMeta.name,
+          version: poolMeta.version,
+          deployment: poolMeta.deployment,
+        };
+        setTrackedPoolsString(JSON.stringify(updated));
       }
     } else {
       setTrackedPoolsString(
         JSON.stringify([
-          ...trackedPools,
-          { id: poolMeta.id, name: poolMeta.name, version: poolMeta.version },
+          ...storedPools,
+          {
+            id: poolMeta.id,
+            name: poolMeta.name,
+            version: poolMeta.version,
+            deployment: poolMeta.deployment,
+          },
         ])
       );
     }
   }
 
   function untrackPool(id: string) {
-    const index = trackedPools.findIndex((pool) => pool.id === id);
+    const index = storedPools.findIndex((pool) => pool.id === id);
     if (index !== -1) {
-      trackedPools.splice(index, 1);
-      setTrackedPoolsString(JSON.stringify(trackedPools));
+      setTrackedPoolsString(JSON.stringify(storedPools.filter((pool) => pool.id !== id)));
     }
   }
 
   function setLastPool(poolMeta: PoolMeta) {
     setLastPoolString(
-      JSON.stringify({ id: poolMeta.id, name: poolMeta.name, version: poolMeta.version })
+      JSON.stringify({
+        id: poolMeta.id,
+        name: poolMeta.name,
+        version: poolMeta.version,
+        deployment: poolMeta.deployment,
+      })
     );
   }
 
@@ -179,6 +222,7 @@ export const SettingsProvider = ({ children = null as any }) => {
         getHorizonServer,
         lastPool,
         setLastPool,
+        configuredPools,
         trackedPools,
         trackPool,
         untrackPool,
@@ -188,6 +232,7 @@ export const SettingsProvider = ({ children = null as any }) => {
         setShowJoinPool,
         blockedPools,
         isV2Enabled,
+        isV21Enabled,
       }}
     >
       {children}

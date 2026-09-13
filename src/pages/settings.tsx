@@ -285,7 +285,7 @@ export default function SettingsPage() {
                 key={pool.id}
                 name={pool.name}
                 id={pool.id}
-                version={pool.version}
+                version={pool.deployment}
                 sx={{ flex: 1 }}
               />
               <OpaqueButton

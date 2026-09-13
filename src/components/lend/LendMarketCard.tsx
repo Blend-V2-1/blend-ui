@@ -11,6 +11,7 @@ import {
   useTokenBalance,
   useTokenMetadata,
 } from '../../hooks/api';
+import { getEmissionSymbol } from '../../hooks/types';
 import * as formatter from '../../utils/formatter';
 import { estimateEmissionsApr } from '../../utils/math';
 import { CustomButton } from '../common/CustomButton';
@@ -41,7 +42,7 @@ export const LendMarketCard: React.FC<LendMarketCardProps> = ({
     tokenMetadata?.asset,
     userAccount
   );
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
 
@@ -111,7 +112,7 @@ export const LendMarketCard: React.FC<LendMarketCardProps> = ({
             <RateDisplay
               assetSymbol={symbol}
               assetRate={reserve.estSupplyApy}
-              emissionSymbol="BLND"
+              emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
               emissionApr={emissionApr}
               rateType={'earned'}
               direction="vertical"

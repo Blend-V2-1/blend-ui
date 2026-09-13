@@ -10,6 +10,7 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
+import { getEmissionSymbol } from '../../hooks/types';
 import * as formatter from '../../utils/formatter';
 import { estimateEmissionsApr } from '../../utils/math';
 import { LinkBox } from '../common/LinkBox';
@@ -35,7 +36,7 @@ export const LendPositionCard: React.FC<LendPositionCardProps> = ({
   const router = useRouter();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
@@ -113,7 +114,7 @@ export const LendPositionCard: React.FC<LendPositionCardProps> = ({
         <RateDisplay
           assetSymbol={symbol}
           assetRate={reserve.estSupplyApy}
-          emissionSymbol="BLND"
+          emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
           emissionApr={emissionApr}
           rateType={'earned'}
           direction="vertical"

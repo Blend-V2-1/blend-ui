@@ -1,12 +1,12 @@
-import { Version } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
+import { PoolDeploymentLike } from '../../hooks/types';
 import { VersionTag } from '../common/VersionTag';
 import { PoolIcon } from './PoolIcon';
 
 export interface PoolHeaderProps extends BoxProps {
   name: string;
   poolAddress?: string;
-  version: Version;
+  version: PoolDeploymentLike;
 }
 
 export const PoolHeader: React.FC<PoolHeaderProps> = ({

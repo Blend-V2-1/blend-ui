@@ -46,15 +46,31 @@ import { useWallet } from '../contexts/wallet';
 import { getContractTokenIcon } from '../external/icon-map';
 import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
+import {
+  BackfillEmissionsState,
+  BackfillSwapState,
+  BLNT_BACKFILL_ID,
+  loadBackfillEmissionsState,
+  loadBackfillSwapState,
+} from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
-import { NOT_BLEND_POOL_ERROR_MESSAGE, PoolMeta } from './types';
+import {
+  getBackstopId,
+  NOT_BLEND_POOL_ERROR_MESSAGE,
+  PoolDeployment,
+  PoolDeploymentLike,
+  PoolMeta,
+} from './types';
 
 const DEFAULT_STALE_TIME = 30 * 1000;
 const USER_STALE_TIME = 60 * 1000;
 const BACKSTOP_ID = process.env.NEXT_PUBLIC_BACKSTOP || '';
 const BACKSTOP_ID_V2 = process.env.NEXT_PUBLIC_BACKSTOP_V2 || '';
-const ORACLE_PRICE_FETCHER = process.env.NEXT_PUBLIC_ORACLE_PRICE_FETCHER;
+const BACKSTOP_ID_V21 = process.env.NEXT_PUBLIC_BACKSTOP_V21 || '';
+const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
+const V21_POOL_WASM_HASH = process.env.NEXT_PUBLIC_V21_POOL_WASM_HASH || POOL_WASM_V2;
+const ORACLE_PRICE_FETCHER = process.env.NEXT_PUBLIC_ORACLE_PRICE_FETCHER?.trim() || undefined;
 
 //********** Query Client Data **********//
 
@@ -71,6 +87,8 @@ export function useQueryClientCacheCleaner(): {
       predicate: (query) =>
         query.queryKey[0] === 'balance' ||
         query.queryKey[0] === 'account' ||
+        query.queryKey[0] === 'backfillEmissions' ||
+        query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
 
@@ -128,6 +146,37 @@ export function useCurrentBlockNumber(): UseQueryResult<number, Error> {
   });
 }
 
+/** Fetch the connected wallet's immutable backfill allocation and live vesting state. */
+export function useBackfillEmissions(
+  enabled: boolean = true
+): UseQueryResult<BackfillEmissionsState, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['backfillEmissions', BLNT_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadBackfillEmissionsState(network, BLNT_BACKFILL_ID, walletAddress),
+  });
+}
+
+/** Fetch the immutable token bindings and live BLND-to-BLNT conversion state. */
+export function useBackfillSwapState(
+  enabled: boolean = true
+): UseQueryResult<BackfillSwapState, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['backfillSwap', BLNT_BACKFILL_ID],
+    enabled: enabled && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadBackfillSwapState(network, BLNT_BACKFILL_ID),
+  });
+}
+
 //********** Pool Data **********//
 
 export function usePoolMeta(
@@ -148,11 +197,16 @@ export function usePoolMeta(
         ) {
           // v1 pool - validate backstop is correct
           if (metadata.backstop === BACKSTOP_ID) {
-            return { id: poolId, version: Version.V1, ...metadata } as PoolMeta;
+            return {
+              id: poolId,
+              version: Version.V1,
+              deployment: PoolDeployment.V1,
+              ...metadata,
+            } as PoolMeta;
           }
         } else if (
-          metadata.wasmHash ===
-            'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e' ||
+          metadata.wasmHash === POOL_WASM_V2 ||
+          metadata.wasmHash === V21_POOL_WASM_HASH ||
           // testnet v2 pool hash
           (network.passphrase === Networks.TESTNET &&
             metadata.wasmHash ===
@@ -160,7 +214,20 @@ export function usePoolMeta(
         ) {
           // v2 pool - validate backstop is correct
           if (metadata.backstop === BACKSTOP_ID_V2) {
-            return { id: poolId, version: Version.V2, ...metadata } as PoolMeta;
+            return {
+              id: poolId,
+              version: Version.V2,
+              deployment: PoolDeployment.V2,
+              ...metadata,
+            } as PoolMeta;
+          }
+          if (metadata.backstop === BACKSTOP_ID_V21) {
+            return {
+              id: poolId,
+              version: Version.V2,
+              deployment: PoolDeployment.V21,
+              ...metadata,
+            } as PoolMeta;
           }
         }
         throw new Error(NOT_BLEND_POOL_ERROR_MESSAGE);
@@ -299,16 +366,17 @@ export function usePoolUser(
  * @returns Query result with the backstop data.
  */
 export function useBackstop(
-  version: Version | undefined,
+  deployment: PoolDeploymentLike | undefined,
   enabled: boolean = true
 ): UseQueryResult<Backstop, Error> {
   const { network } = useSettings();
+  const backstopId = getBackstopId(deployment);
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
-    queryKey: ['backstop', version],
-    enabled: enabled && version !== undefined,
+    queryKey: ['backstop', deployment, backstopId],
+    enabled: enabled && deployment !== undefined && backstopId !== '',
     queryFn: async () => {
-      return await Backstop.load(network, version === Version.V2 ? BACKSTOP_ID_V2 : BACKSTOP_ID);
+      return await Backstop.load(network, backstopId);
     },
   });
 }
@@ -331,7 +399,7 @@ export function useBackstopPool(
     queryFn: async () => {
       if (poolMeta !== undefined) {
         return poolMeta.version === Version.V2
-          ? await BackstopPoolV2.load(network, BACKSTOP_ID_V2, poolMeta.id)
+          ? await BackstopPoolV2.load(network, getBackstopId(poolMeta.deployment), poolMeta.id)
           : await BackstopPoolV1.load(network, BACKSTOP_ID, poolMeta.id);
       }
     },
@@ -364,7 +432,7 @@ export function useBackstopPoolUser(
       if (walletAddress !== '' && poolMeta !== undefined) {
         return await BackstopPoolUser.load(
           network,
-          poolMeta.version === Version.V2 ? BACKSTOP_ID_V2 : BACKSTOP_ID,
+          poolMeta.version === Version.V2 ? getBackstopId(poolMeta.deployment) : BACKSTOP_ID,
           poolMeta.id,
           walletAddress
         );

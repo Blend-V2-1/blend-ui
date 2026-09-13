@@ -1,6 +1,6 @@
-import { Version } from '@blend-capital/blend-sdk';
 import { BoxProps } from '@mui/material';
 import { useSettings } from '../../contexts';
+import { PoolDeployment } from '../../hooks/types';
 import { PoolHeader } from '../pool/PoolHeader';
 import { GoBackButton } from './GoBackButton';
 import { Section, SectionSize } from './Section';
@@ -13,11 +13,11 @@ export const GoBackHeader: React.FC<GoBackHeaderProps> = ({ poolId }) => {
   const { trackedPools } = useSettings();
   const trackedPool = trackedPools.find((pool) => pool.id === poolId);
   const name = trackedPool?.name ?? 'Unkown';
-  const version = trackedPool?.version ?? Version.V1;
+  const deployment = trackedPool?.deployment ?? PoolDeployment.V1;
   return (
     <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
       <GoBackButton />
-      <PoolHeader name={name} poolAddress={poolId} version={version} />
+      <PoolHeader name={name} poolAddress={poolId} version={deployment} />
     </Section>
   );
 };

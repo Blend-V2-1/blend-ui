@@ -1,9 +1,9 @@
-import { Version } from '@blend-capital/blend-sdk';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { Menu, MenuItem, useTheme } from '@mui/material';
 import { useRouter } from 'next/router';
 import React from 'react';
 import { useSettings } from '../../contexts';
+import { PoolDeployment } from '../../hooks/types';
 import { CustomButton } from '../common/CustomButton';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { PoolHeader } from './PoolHeader';
@@ -45,7 +45,7 @@ export const PoolMenu: React.FC<PoolComponentProps> = ({ poolId }) => {
         <PoolHeader
           name={trackedPool?.name ?? 'Unknown'}
           poolAddress={poolId}
-          version={trackedPool?.version ?? Version.V1}
+          version={trackedPool?.deployment ?? PoolDeployment.V1}
         />
         <ArrowDropDownIcon sx={{ color: theme.palette.text.secondary }} />
       </CustomButton>
@@ -64,7 +64,7 @@ export const PoolMenu: React.FC<PoolComponentProps> = ({ poolId }) => {
             if (!blockedPools.includes(pool.id))
               return (
                 <MenuItem onClick={() => handleClickMenuItem(pool.id)} key={pool.id}>
-                  <PoolHeader name={pool.name} poolAddress={pool.id} version={pool.version} />
+                  <PoolHeader name={pool.name} poolAddress={pool.id} version={pool.deployment} />
                 </MenuItem>
               );
           })}

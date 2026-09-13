@@ -9,6 +9,7 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
+import { getEmissionSymbol } from '../../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { estimateEmissionsApr } from '../../utils/math';
 import { LinkBox } from '../common/LinkBox';
@@ -23,7 +24,7 @@ export const AssetSupplyInfo: React.FC<ReserveComponentProps> = ({ poolId, asset
   const { data: poolMeta } = usePoolMeta(poolId);
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: tokenMetadata } = useTokenMetadata(assetId);
   const tokenSymbol = tokenMetadata?.symbol ?? toCompactAddress(assetId);
   const oraclePrice = poolOracle?.getPriceFloat(assetId);
@@ -86,7 +87,7 @@ export const AssetSupplyInfo: React.FC<ReserveComponentProps> = ({ poolId, asset
               <RateDisplay
                 assetSymbol={tokenSymbol}
                 assetRate={reserve.estSupplyApy}
-                emissionSymbol={'BLND'}
+                emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
                 emissionApr={emissionApr}
                 rateType={'earned'}
                 direction={'horizontal'}

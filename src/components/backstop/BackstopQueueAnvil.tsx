@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
+import { getEmissionSymbol } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance } from '../../utils/formatter';
 import { getErrorFromSim, SubmitError } from '../../utils/txSim';
@@ -44,9 +45,10 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   } = useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
+  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
 
   const [toQueue, setToQueue] = useState<string>('');
   const [toQueueShares, setToQueueShares] = useState<bigint>(BigInt(0));
@@ -171,7 +173,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
             }}
           >
             <InputBar
-              symbol={'BLND-USDC LP'}
+              symbol={lpSymbol}
               value={toQueue}
               onValueChange={handleInputChange}
               palette={theme.palette.backstop}
@@ -236,7 +238,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
         {!isError && displayTxOverview && (
           <TxOverview>
             <>
-              <Value title="Amount to queue" value={`${toQueue ?? '0'} BLND-USDC LP`} />
+              <Value title="Amount to queue" value={`${toQueue ?? '0'} ${lpSymbol}`} />
               <Value
                 title={
                   <>
@@ -263,13 +265,13 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
 
               <ValueChange
                 title="Your total amount queued"
-                curValue={`${toBalance(currentTokensQ4WFloat)} BLND-USDC LP`}
+                curValue={`${toBalance(currentTokensQ4WFloat)} ${lpSymbol}`}
                 newValue={`${toBalance(
                   backstopUserEst && parsedSimResult
                     ? currentTokensQ4WFloat +
                         FixedMath.toFloat(parsedSimResult.amount, 7) * sharesToTokens
                     : 0
-                )} BLND-USDC LP`}
+                )} ${lpSymbol}`}
               />
             </>
           </TxOverview>

@@ -2,6 +2,7 @@ import { Pool } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
 import { usePoolOracle } from '../../hooks/api';
+import { getPoolDeployment } from '../../hooks/types';
 import { LotListItem } from './LotListItem';
 
 export interface LotListProps extends BoxProps {
@@ -82,6 +83,7 @@ export const LotList: React.FC<LotListProps> = ({ pool, lot, type, lotValue }) =
           type={type}
           amount={amount}
           oracleValue={lotValue.get(asset)}
+          deployment={getPoolDeployment(pool.metadata)}
         />
       ))}
     </Box>

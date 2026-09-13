@@ -1,9 +1,9 @@
-import { Version } from '@blend-capital/blend-sdk';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
+import { PoolDeployment } from '../../hooks/types';
 import theme from '../../theme';
 import { ReserveTokenMetadata } from '../../utils/token';
 import { Row } from '../common/Row';
@@ -21,12 +21,12 @@ interface MarketData {
 }
 
 export interface MarketListProps extends BoxProps {
-  version: Version | undefined;
+  deployment: PoolDeployment | undefined;
 }
 
-export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
-  const { blockedPools } = useSettings();
-  const { data: backstop } = useBackstop(version);
+export const MarketsList: React.FC<MarketListProps> = ({ deployment }) => {
+  const { blockedPools, configuredPools } = useSettings();
+  const { data: backstop } = useBackstop(deployment);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [marketsData, setMarketsData] = useState<Record<string, MarketData>>({});
@@ -43,25 +43,21 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
     .filter((value, index, self) => self.indexOf(value) === index)
     .sort();
 
-  const rewardZone = [...(backstop?.config?.rewardZone ?? [])].reverse();
-  const safeRewardZone = useMemo(() => {
-    // pools don't meet threshold due to comet bug. Hardcode
-    // pools that were in reward zone before the bug.
-    if (version === Version.V1) {
-      return [
-        'CDVQVKOY2YSXS2IC7KN6MNASSHPAO7UN2UR2ON4OI2SKMFJNVAMDX6DP',
-        'CBP7NO6F7FRDHSOFQBT2L2UWYIZ2PU76JKVRYAQTG3KZSQLYAOKIF2WB',
-        'CAQF5KNOFIGRI24NQRRGUPD46Q45MGMXZMRTQFXS25Y4NZVNPT34GM6S',
-      ];
-    } else {
-      return [
-        'CAJJZSGMMM3PD7N33TAPHGBUGTB43OC73HVIK2L2G6BNGGGYOSSYBXBD',
-        'CCCCIQSDILITHMM7PBSLVDT5MISSY7R26MNZXCX4H7J5JQ5FPIYOGYFS',
-        'CDMAVJPFXPADND3YRL4BSM3AKZWCTFMX27GLLXCML3PD62HEQS5FPVAI',
-        'CC4HHXPKR3FIXUQEC53MAK2IVWD6APAEBBXP5XCIW5FISN6PQOAC6UXG',
-      ];
-    }
-  }, [rewardZone, blockedPools]);
+  const rewardZone = useMemo(
+    () => [...(backstop?.config?.rewardZone ?? [])].reverse(),
+    [backstop?.config?.rewardZone]
+  );
+  const configuredPoolIds = useMemo(
+    () => configuredPools.filter((pool) => pool.deployment === deployment).map((pool) => pool.id),
+    [configuredPools, deployment]
+  );
+  const safeRewardZone = useMemo(
+    () =>
+      Array.from(new Set([...rewardZone, ...configuredPoolIds])).filter(
+        (poolId) => !blockedPools.includes(poolId)
+      ),
+    [rewardZone, configuredPoolIds, blockedPools]
+  );
 
   useEffect(() => {
     const loadedMarkets = Object.values(marketsData);
@@ -117,13 +113,13 @@ export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
     filters.selectedAssets,
   ]);
 
-  // Reset all state related to market data when version changes
+  // Reset all state related to market data when deployment changes
   useEffect(() => {
     setMarketsData({});
     setSortedPoolIds([]);
     setCurrentIndex(0);
     handleFilterChange('selectedAssets', []);
-  }, [version]);
+  }, [deployment]);
 
   // Handle pool data loading
   function handlePoolLoaded(

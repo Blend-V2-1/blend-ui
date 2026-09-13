@@ -1,4 +1,3 @@
-import { Version } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
@@ -6,12 +5,13 @@ import { useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, useHorizonAccount, useTokenBalance } from '../../hooks/api';
+import { getEmissionSymbol, PoolDeployment } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estExitPool } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { BLND_ASSET, USDC_ASSET } from '../../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../../utils/token_display';
 import { SubmitError, getErrorFromSim } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
@@ -25,7 +25,7 @@ import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
 
-export const BackstopExitAnvil = () => {
+export const BackstopExitAnvil: React.FC<{ deployment: PoolDeployment }> = ({ deployment }) => {
   const theme = useTheme();
   const { viewType, network } = useSettings();
   const {
@@ -38,13 +38,17 @@ export const BackstopExitAnvil = () => {
     txInclusionFee,
   } = useWallet();
 
-  const BLND_ID = BLND_ASSET.contractId(network.passphrase);
-  const USDC_ID = USDC_ASSET.contractId(network.passphrase);
+  const emissionAsset = deployment === PoolDeployment.V21 ? BLNT_ASSET : BLND_ASSET;
+  const usdcAsset = deployment === PoolDeployment.V21 ? V21_USDC_ASSET : USDC_ASSET;
+  const emissionSymbol = getEmissionSymbol(deployment);
+  const lpSymbol = `${emissionSymbol}-USDC LP`;
+  const BLND_ID = emissionAsset.contractId(network.passphrase);
+  const USDC_ID = usdcAsset.contractId(network.passphrase);
 
-  const { data: backstop } = useBackstop(Version.V1);
+  const { data: backstop } = useBackstop(deployment);
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(BLND_ID, BLND_ASSET, horizonAccount);
-  const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, USDC_ASSET, horizonAccount);
+  const { data: blndBalanceRes } = useTokenBalance(BLND_ID, emissionAsset, horizonAccount);
+  const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, usdcAsset, horizonAccount);
   const { data: lpBalanceRes } = useTokenBalance(
     backstop?.backstopToken.id,
     undefined,
@@ -87,34 +91,34 @@ export const BackstopExitAnvil = () => {
 
   const AddBLNDTrustlineButton = (
     <OpaqueButton
-      onClick={async () => createTrustlines([BLND_ASSET])}
+      onClick={async () => createTrustlines([emissionAsset])}
       palette={theme.palette.warning}
       sx={{ padding: '6px 24px', margin: '12px auto' }}
     >
-      Add {BLND_ASSET.code} Trustline
+      Add {emissionAsset.code} Trustline
     </OpaqueButton>
   );
   const AddUSDCTrustlineButton = (
     <OpaqueButton
-      onClick={async () => createTrustlines([USDC_ASSET])}
+      onClick={async () => createTrustlines([usdcAsset])}
       palette={theme.palette.warning}
       sx={{ padding: '6px 24px', margin: '12px auto' }}
     >
-      Add {USDC_ASSET.code} Trustline
+      Add {usdcAsset.code} Trustline
     </OpaqueButton>
   );
 
   // verify that the user can act
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, isError, extraContent } =
     useMemo(() => {
-      const hasBLNDTrustline = !requiresTrustline(horizonAccount, BLND_ASSET);
-      const hasUSDCTrustline = !requiresTrustline(horizonAccount, USDC_ASSET);
+      const hasBLNDTrustline = !requiresTrustline(horizonAccount, emissionAsset);
+      const hasUSDCTrustline = !requiresTrustline(horizonAccount, usdcAsset);
       if (lpBalance === BigInt(0)) {
         return {
           isSubmitDisabled: true,
           isError: true,
           isMaxDisabled: true,
-          reason: 'You do not have any LP tokens for the BLND-USDC pool',
+          reason: `You do not have any LP tokens for the ${emissionSymbol}-USDC pool`,
           disabledType: 'warning',
         } as SubmitError;
       } else if (!hasBLNDTrustline) {
@@ -122,7 +126,7 @@ export const BackstopExitAnvil = () => {
           isSubmitDisabled: true,
           isError: true,
           isMaxDisabled: true,
-          reason: 'You need a BLND trustline to exit the LP.',
+          reason: `You need a ${emissionSymbol} trustline to exit the LP.`,
           disabledType: 'warning',
           extraContent: AddBLNDTrustlineButton,
         } as SubmitError;
@@ -263,7 +267,7 @@ export const BackstopExitAnvil = () => {
               }}
             >
               <InputBar
-                symbol={'BLND-USDC LP'}
+                symbol={lpSymbol}
                 value={input.amount}
                 onValueChange={(v) => {
                   handleSetInputAmount(v);
@@ -375,7 +379,7 @@ export const BackstopExitAnvil = () => {
           <TxOverview>
             <>
               {' '}
-              <Value title="Amount to withdraw" value={`${input.amount ?? '0'} BLND-USDC LP`} />
+              <Value title="Amount to withdraw" value={`${input.amount ?? '0'} ${lpSymbol}`} />
               <Value
                 title={
                   <>
@@ -390,20 +394,23 @@ export const BackstopExitAnvil = () => {
               />
               <ValueChange
                 title="Your LP tokens"
-                curValue={`${toBalance(lpBalance, 7)} BLND-USDC LP`}
+                curValue={`${toBalance(lpBalance, 7)} ${lpSymbol}`}
                 newValue={`${toBalance(
                   lpBalance - BigInt(Math.floor(Number(input.amount) * 1e7)),
                   7
-                )} BLND-USDC LP`}
+                )} ${lpSymbol}`}
               />
-              <Value title="Min BLND to withdraw" value={`${toBalance(minBLNDOut)} BLND`} />
+              <Value
+                title={`Min ${emissionSymbol} to withdraw`}
+                value={`${toBalance(minBLNDOut)} ${emissionSymbol}`}
+              />
               <ValueChange
-                title="Your BLND tokens"
-                curValue={`${toBalance(blndBalance, 7)} BLND`}
+                title={`Your ${emissionSymbol} tokens`}
+                curValue={`${toBalance(blndBalance, 7)} ${emissionSymbol}`}
                 newValue={`${toBalance(
                   blndBalance + BigInt(Math.floor(minBLNDOut * 1e7)),
                   7
-                )} BLND`}
+                )} ${emissionSymbol}`}
               />
               <Value title="Min USDC to withdraw" value={`${toBalance(minUSDCOut)} USDC`} />
               <ValueChange

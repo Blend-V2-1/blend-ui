@@ -25,7 +25,7 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
 
   const { data: poolMeta } = usePoolMeta(poolId);
   const { data: pool } = usePool(poolMeta);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
 

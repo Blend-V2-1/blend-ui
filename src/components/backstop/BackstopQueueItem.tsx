@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolMeta, useSimulateOperation } from '../../hooks/api';
+import { getBackstopId, getEmissionSymbol } from '../../hooks/types';
 import theme from '../../theme';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
 import { Icon } from '../common/Icon';
@@ -31,10 +32,11 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
   const { viewType } = useSettings();
 
   const { data: poolMeta } = usePoolMeta(poolId);
+  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
 
   const backstop =
     poolMeta?.version === Version.V2
-      ? new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '')
+      ? new BackstopContractV1(getBackstopId(poolMeta.deployment))
       : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
   const actionArgs: PoolBackstopActionArgs = {
     from: walletAddress,
@@ -188,7 +190,7 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
                 {toBalance(inTokens)}
               </Typography>
               <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                BLND-USDC LP
+                {lpSymbol}
               </Typography>
             </Box>
             <Typography variant="h4" sx={{ marginRight: '6px' }}>

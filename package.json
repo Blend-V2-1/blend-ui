@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:testnet": "TARGET_ENV=testnet node loadEnv.js && next dev",
     "build": "next build",
     "build:mainnet": "TARGET_ENV=production node loadEnv.js && next build",
     "build:testnet": "TARGET_ENV=testnet node loadEnv.js && next build",

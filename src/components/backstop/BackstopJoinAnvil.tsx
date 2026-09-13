@@ -1,16 +1,17 @@
-import { Version, parseResult } from '@blend-capital/blend-sdk';
+import { parseResult } from '@blend-capital/blend-sdk';
 import { LoopOutlined } from '@mui/icons-material';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc, scValToBigInt, xdr } from '@stellar/stellar-sdk';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, useHorizonAccount, useTokenBalance } from '../../hooks/api';
+import { getEmissionSymbol, PoolDeployment } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estJoinPool, estLPTokenViaJoin } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { BLND_ASSET, USDC_ASSET } from '../../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../../utils/token_display';
 import { SubmitError, getErrorFromSim } from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
@@ -21,7 +22,7 @@ import { Section, SectionSize } from '../common/Section';
 import { Skeleton } from '../common/Skeleton';
 import { TxFeeSelector } from '../common/TxFeeSelector';
 
-export const BackstopJoinAnvil = () => {
+export const BackstopJoinAnvil: React.FC<{ deployment: PoolDeployment }> = ({ deployment }) => {
   const theme = useTheme();
   const { viewType, network } = useSettings();
   const {
@@ -34,13 +35,18 @@ export const BackstopJoinAnvil = () => {
     txInclusionFee,
   } = useWallet();
 
-  const BLND_ID = BLND_ASSET.contractId(network.passphrase);
-  const USDC_ID = USDC_ASSET.contractId(network.passphrase);
+  const emissionAsset = deployment === PoolDeployment.V21 ? BLNT_ASSET : BLND_ASSET;
+  const usdcAsset = deployment === PoolDeployment.V21 ? V21_USDC_ASSET : USDC_ASSET;
+  const emissionSymbol = getEmissionSymbol(deployment);
+  const lpSymbol = `${emissionSymbol}-USDC LP`;
+  const isV21 = deployment === PoolDeployment.V21;
+  const BLND_ID = emissionAsset.contractId(network.passphrase);
+  const USDC_ID = usdcAsset.contractId(network.passphrase);
 
-  const { data: backstop } = useBackstop(Version.V1);
+  const { data: backstop } = useBackstop(deployment);
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: blndBalanceRes } = useTokenBalance(BLND_ID, BLND_ASSET, horizonAccount);
-  const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, USDC_ASSET, horizonAccount);
+  const { data: blndBalanceRes } = useTokenBalance(BLND_ID, emissionAsset, horizonAccount);
+  const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, usdcAsset, horizonAccount);
   const { data: lpBalanceRes } = useTokenBalance(
     backstop?.backstopToken?.id ?? '',
     undefined,
@@ -63,8 +69,18 @@ export const BackstopJoinAnvil = () => {
   const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
   const loading = isLoading || loadingEstimate;
   const decimals = 7;
-  const isJoin = currentToken.symbol === 'BLND-USDC LP';
+  const isJoin = currentToken.symbol === lpSymbol;
   const validDecimals = (input.amount.split('.')[1]?.length ?? 0) <= decimals;
+
+  useEffect(() => {
+    setCurrentToken({ address: USDC_ID, symbol: 'USDC' });
+    setInput({ amount: '', slippage: '1' });
+    setToMint(0);
+    setMaxBLNDIn(0);
+    setMaxUSDCIn(0);
+    setLoadingEstimate(false);
+    setSimResponse(undefined);
+  }, [deployment, USDC_ID]);
 
   const clearInputResultState = () => {
     setToMint(0);
@@ -88,7 +104,7 @@ export const BackstopJoinAnvil = () => {
   const curTokenBalance =
     currentToken.symbol === 'USDC'
       ? usdcBalance
-      : currentToken.symbol === 'BLND'
+      : currentToken.symbol === emissionSymbol
       ? blndBalance
       : lpBalance;
   const maxBLNDDeposit = backstop ? backstop.backstopToken.blnd / BigInt(3) - BigInt(1) : BigInt(0);
@@ -142,7 +158,7 @@ export const BackstopJoinAnvil = () => {
         errorProps.isMaxDisabled = false;
         errorProps.reason = 'Slippage can be at most 10%';
         errorProps.disabledType = 'warning';
-      } else if (currentToken.symbol === 'BLND' && inputAsBigInt > maxBLNDDeposit) {
+      } else if (currentToken.symbol === emissionSymbol && inputAsBigInt > maxBLNDDeposit) {
         errorProps.isSubmitDisabled = true;
         errorProps.isError = true;
         errorProps.isMaxDisabled = true;
@@ -169,7 +185,7 @@ export const BackstopJoinAnvil = () => {
         errorProps.isMaxDisabled = true;
         errorProps.reason = `You do not have enough tokens to mint the requested amount. You need ${toBalance(
           maxBLNDIn
-        )} BLND and ${toBalance(maxUSDCIn)} USDC.`;
+        )} ${emissionSymbol} and ${toBalance(maxUSDCIn)} USDC.`;
         errorProps.disabledType = 'warning';
       }
       if (errorProps.isError) {
@@ -200,7 +216,7 @@ export const BackstopJoinAnvil = () => {
   const handleMaxClick = () => {
     if (!isJoin) {
       let max = curTokenBalance;
-      if (currentToken.symbol === 'BLND' && curTokenBalance > maxBLNDDeposit) {
+      if (currentToken.symbol === emissionSymbol && curTokenBalance > maxBLNDDeposit) {
         max = maxBLNDDeposit;
       } else if (currentToken.symbol === 'USDC' && curTokenBalance > maxUSDCDeposit) {
         max = maxUSDCDeposit;
@@ -232,7 +248,7 @@ export const BackstopJoinAnvil = () => {
       if (
         !isJoin &&
         inputAsBigInt <= curTokenBalance &&
-        ((currentToken.symbol === 'BLND' && inputAsBigInt <= maxBLNDDeposit) ||
+        ((currentToken.symbol === emissionSymbol && inputAsBigInt <= maxBLNDDeposit) ||
           (currentToken.symbol === 'USDC' && inputAsBigInt <= maxUSDCDeposit))
       ) {
         cometSingleSidedDeposit(
@@ -328,12 +344,12 @@ export const BackstopJoinAnvil = () => {
       if (currentToken.symbol === 'USDC') {
         setCurrentToken({
           address: backstop.config.blndTkn,
-          symbol: 'BLND',
+          symbol: emissionSymbol,
         });
-      } else if (currentToken.symbol === 'BLND') {
+      } else if (currentToken.symbol === emissionSymbol) {
         setCurrentToken({
           address: backstop.config.backstopTkn,
-          symbol: 'BLND-USDC LP',
+          symbol: lpSymbol,
         });
       } else {
         setCurrentToken({
@@ -346,7 +362,7 @@ export const BackstopJoinAnvil = () => {
 
   const inputInUSDC = isJoin
     ? Number(input.amount) * backstop.backstopToken.lpTokenPrice
-    : currentToken.symbol === 'BLND'
+    : currentToken.symbol === emissionSymbol
     ? Number(input.amount) *
       (Number(backstop.backstopToken.usdc) / 0.2 / (Number(backstop.backstopToken.blnd) / 0.8))
     : Number(input.amount);
@@ -510,20 +526,22 @@ export const BackstopJoinAnvil = () => {
                   padding: '6px',
                   height: 'max-content',
                 }}
-                disabled={true}
+                disabled={!isV21 || isSubmitDisabled}
               >
                 Join
               </OpaqueButton>
             </Box>
           </Box>
         </Box>
-        <AnvilAlert
-          severity={'warning'}
-          message={
-            'Depositing into the BLND-USDC LP is currently disabled due to an issue in the underlying protocol Comet.'
-          }
-          extraContent={undefined}
-        />
+        {!isV21 && (
+          <AnvilAlert
+            severity={'warning'}
+            message={
+              'Depositing into the BLND-USDC LP is currently disabled due to an issue in the underlying protocol Comet.'
+            }
+            extraContent={undefined}
+          />
+        )}
         {/* {!isError && (
           <TxOverview>
             <>

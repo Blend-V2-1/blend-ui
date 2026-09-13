@@ -42,7 +42,7 @@ const Auction: NextPage = () => {
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
   const { data: pool, isError: isPoolLoadingError } = usePool(poolMeta);
   const { isError: isOracleError } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   let { data: pastEvents, isError: isLongEventsError } = useAuctionEventsLongQuery(poolMeta);
   const {
     data: recentEvents,

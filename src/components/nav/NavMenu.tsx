@@ -13,6 +13,7 @@ export const NavMenu = () => {
   const { viewType, lastPool } = useSettings();
 
   const { data: backstop } = useBackstop(Version.V1, lastPool == undefined);
+  const isBackfillEnabled = Boolean(process.env.NEXT_PUBLIC_BLNT_BACKFILL);
   const poolId = (lastPool ? lastPool.id : backstop?.config?.rewardZone[0]) ?? '';
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
 
@@ -56,6 +57,13 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          {isBackfillEnabled && (
+            <Link href="/emissions">
+              <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+                BLNT Backfill
+              </MenuItem>
+            </Link>
+          )}
           <Link href={{ pathname: '/auction', query: { poolId: safePoolId } }}>
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Auctions
@@ -114,6 +122,13 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          {isBackfillEnabled && (
+            <Link href="/emissions">
+              <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+                BLNT Backfill
+              </MenuItem>
+            </Link>
+          )}
           <NavItem
             onClick={handleClose}
             to={{ pathname: '/' }}

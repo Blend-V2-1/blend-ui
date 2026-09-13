@@ -1,6 +1,7 @@
 import { Reserve } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
+import { getEmissionSymbol, PoolDeployment } from '../../hooks/types';
 import { toBalance } from '../../utils/formatter';
 import { Icon } from '../common/Icon';
 import { TokenHeader } from '../common/TokenHeader';
@@ -10,12 +11,14 @@ export interface LotItemProps extends BoxProps {
   type: string;
   amount: bigint;
   oracleValue: number | undefined;
+  deployment: PoolDeployment | undefined;
 }
 export const LotListItem: React.FC<LotItemProps> = ({
   reserve,
   amount,
   type,
   oracleValue,
+  deployment,
   ...props
 }) => {
   const theme = useTheme();
@@ -53,7 +56,7 @@ export const LotListItem: React.FC<LotItemProps> = ({
             />
 
             <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-              BLND-USDC LP
+              {getEmissionSymbol(deployment)}-USDC LP
             </Typography>
           </Box>
         )}

@@ -11,6 +11,7 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
+import { getEmissionSymbol } from '../../hooks/types';
 import { estimateEmissionsApr } from '../../utils/math';
 import { CustomButton } from '../common/CustomButton';
 import { LinkBox } from '../common/LinkBox';
@@ -33,7 +34,7 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
   const { viewType } = useSettings();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
@@ -109,7 +110,7 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
             <RateDisplay
               assetSymbol={symbol}
               assetRate={reserve.estBorrowApy}
-              emissionSymbol="BLND"
+              emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
               emissionApr={emissionApr}
               rateType={'charged'}
               direction="vertical"

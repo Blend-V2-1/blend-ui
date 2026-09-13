@@ -22,7 +22,7 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
   const isTestnet = process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET;
 
   const { data: poolMeta } = usePoolMeta(safePoolId as string, safePoolId !== undefined);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: feeStats } = useFeeStats();
 
   // get the last (oldest) pool in the reward zone

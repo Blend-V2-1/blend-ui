@@ -46,7 +46,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
   const { trackPool, viewType } = useSettings();
 
   const { data: poolMeta, error: poolMetaError, isError: isPoolMetaError } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: pool, isError: isPoolError } = usePool(poolMeta);
   const { data: poolOracle, isError: isOracleError } = usePoolOracle(pool);
   const { data: backstopPool } = useBackstopPool(poolMeta);
@@ -169,7 +169,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
           <PoolHeader
             name={poolMeta.name}
             poolAddress={poolId}
-            version={poolMeta.version}
+            version={poolMeta.deployment}
             sx={{ margin: '6px', padding: '6px' }}
           />
         </Row>
@@ -209,7 +209,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
           <PoolHeader
             name={poolMeta.name}
             poolAddress={poolId}
-            version={poolMeta.version}
+            version={poolMeta.deployment}
             sx={{ margin: '6px', padding: '6px' }}
           />
 

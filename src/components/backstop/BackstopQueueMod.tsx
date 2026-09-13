@@ -10,7 +10,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
   const theme = useTheme();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
 

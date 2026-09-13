@@ -21,7 +21,7 @@ import {
   usePoolUser,
   useTokenMetadata,
 } from '../hooks/api';
-import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 import { estimateEmissionsApr } from '../utils/math';
 
@@ -38,7 +38,7 @@ const Withdraw: NextPage = () => {
   const { data: pool } = usePool(poolMeta);
   const { data: poolUser } = usePoolUser(pool);
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: tokenMetadata } = useTokenMetadata(safeAssetId);
   const reserve = pool?.reserves.get(safeAssetId);
   const tokenSymbol = tokenMetadata?.symbol ?? toCompactAddress(safeAssetId);
@@ -170,7 +170,7 @@ const Withdraw: NextPage = () => {
                 <RateDisplay
                   assetSymbol={tokenSymbol}
                   assetRate={reserve.estSupplyApy}
-                  emissionSymbol={'BLND'}
+                  emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
                   emissionApr={emissionApr}
                   rateType={'earned'}
                   direction={'horizontal'}

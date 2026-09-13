@@ -33,7 +33,6 @@ import { TooltipText } from '../components/common/TooltipText';
 import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { PoolExploreBar } from '../components/pool/PoolExploreBar';
 import { PoolHealthBanner } from '../components/pool/PoolHealthBanner';
-import { useSettings } from '../contexts/settings';
 import { useWallet } from '../contexts/wallet';
 import {
   useBackstop,
@@ -44,21 +43,25 @@ import {
   useSimulateOperation,
   useTokenBalance,
 } from '../hooks/api';
-import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import {
+  getBackstopId,
+  getEmissionSymbol,
+  NOT_BLEND_POOL_ERROR_MESSAGE,
+  PoolDeployment,
+} from '../hooks/types';
 import theme from '../theme';
 import { CometClient } from '../utils/comet';
 import { toBalance, toPercentage } from '../utils/formatter';
 
 const Backstop: NextPage = () => {
   const router = useRouter();
-  const { isV2Enabled } = useSettings();
   const { connected, walletAddress, backstopClaim, restore } = useWallet();
 
   const { poolId } = router.query;
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
 
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: userBackstopPoolData } = useBackstopPoolUser(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
@@ -67,6 +70,9 @@ const Backstop: NextPage = () => {
     undefined,
     horizonAccount
   );
+  const emissionSymbol = getEmissionSymbol(poolMeta?.deployment);
+  const lpSymbol = `${emissionSymbol}-USDC LP`;
+  const isV21 = poolMeta?.deployment === PoolDeployment.V21;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined
@@ -90,13 +96,13 @@ const Backstop: NextPage = () => {
 
   let claimOp = '';
 
-  if (isV2Enabled && poolMeta?.version == Version.V2) {
+  if (poolMeta?.version == Version.V2) {
     const claimArgs: BackstopClaimV2Args = {
       from: walletAddress,
       pool_addresses: [safePoolId],
       min_lp_tokens_out: BigInt(0),
     };
-    let backstopContract = new BackstopContractV2(process.env.NEXT_PUBLIC_BACKSTOP_V2 ?? '');
+    let backstopContract = new BackstopContractV2(getBackstopId(poolMeta.deployment));
     claimOp =
       safePoolId && walletAddress !== '' && backstopContract
         ? backstopContract.claim(claimArgs)
@@ -162,7 +168,7 @@ const Backstop: NextPage = () => {
   const handleClaimEmissionsClick = async () => {
     if (connected && poolMeta && userBackstopPoolData) {
       let claimArgs: BackstopClaimV1Args | BackstopClaimV2Args;
-      if (isV2Enabled && poolMeta.version == Version.V2) {
+      if (poolMeta.version == Version.V2) {
         claimArgs = {
           from: walletAddress,
           pool_addresses: [safePoolId],
@@ -206,7 +212,7 @@ const Backstop: NextPage = () => {
                   {toBalance(lpTokenEmissions, 7)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                  BLND-USDC LP
+                  {lpSymbol}
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -318,21 +324,23 @@ const Backstop: NextPage = () => {
         </SectionBase>
       </Row>
       <Divider />
-      <Box
-        width={SectionSize.FULL}
-        sx={{
-          display: 'flex',
-          margin: '6px',
-        }}
-      >
-        <AnvilAlert
-          severity={'warning'}
-          message={
-            'Due to an issue with Comet, the underlying protocol of the BLND-USDC LP token, the backstop APR is incorrect.'
-          }
-          extraContent={undefined}
-        />
-      </Box>
+      {!isV21 && (
+        <Box
+          width={SectionSize.FULL}
+          sx={{
+            display: 'flex',
+            margin: '6px',
+          }}
+        >
+          <AnvilAlert
+            severity={'warning'}
+            message={
+              'Due to an issue with Comet, the underlying protocol of the BLND-USDC LP token, the backstop APR is incorrect.'
+            }
+            extraContent={undefined}
+          />
+        </Box>
+      )}
       <Row>
         <Section width={SectionSize.THIRD}>
           <BackstopAPR poolId={safePoolId} />
@@ -434,7 +442,7 @@ const Backstop: NextPage = () => {
           }}
         >
           <Typography variant="body2" sx={{ margin: '6px' }}>
-            Your BLND-USDC LP Token Balance
+            Your {lpSymbol} Token Balance
           </Typography>
           <Box
             sx={{
@@ -460,7 +468,7 @@ const Backstop: NextPage = () => {
                   {toBalance(lpBalance, 7)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                  BLND-USDC LP
+                  {lpSymbol}
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -478,7 +486,10 @@ const Backstop: NextPage = () => {
               alignItems: 'center',
             }}
           >
-            <LinkBox sx={{ width: SectionSize.TILE }} to={{ pathname: '/backstop-token' }}>
+            <LinkBox
+              sx={{ width: SectionSize.TILE }}
+              to={{ pathname: '/backstop-token', query: { deployment: poolMeta?.deployment } }}
+            >
               <OpaqueButton palette={theme.palette.primary} sx={{ width: '100%', padding: '6px' }}>
                 Manage
               </OpaqueButton>
@@ -530,7 +541,7 @@ const Backstop: NextPage = () => {
                       {toBalance(backstopUserEst?.tokens)}
                     </Typography>
                     <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                      BLND-USDC LP
+                      {lpSymbol}
                     </Typography>
                   </Box>
                   <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>

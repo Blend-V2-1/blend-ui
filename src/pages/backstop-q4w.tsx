@@ -12,7 +12,7 @@ import { Section, SectionSize } from '../components/common/Section';
 import { StackedText } from '../components/common/StackedText';
 import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../hooks/api';
-import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toPercentage } from '../utils/formatter';
 
 const BackstopQ4W: NextPage = () => {
@@ -23,9 +23,10 @@ const BackstopQ4W: NextPage = () => {
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
 
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: userBackstopPoolData } = useBackstopPoolUser(poolMeta);
+  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined
@@ -72,7 +73,7 @@ const BackstopQ4W: NextPage = () => {
             </Box>
             <Box>
               <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-                BLND-USDC LP
+                {lpSymbol}
               </Typography>
             </Box>
           </Box>

@@ -1,13 +1,18 @@
 import { Box, BoxProps, Typography } from '@mui/material';
+import { usePoolMeta } from '../../hooks/api';
+import { getEmissionSymbol } from '../../hooks/types';
 import { Icon } from '../common/Icon';
 
 export interface BackstopHeaderProps extends BoxProps {
   type: 'deposit' | 'q4w';
+  poolId: string;
 }
 
-export const BackstopHeader: React.FC<BackstopHeaderProps> = ({ type, sx, ...props }) => {
+export const BackstopHeader: React.FC<BackstopHeaderProps> = ({ type, poolId, sx, ...props }) => {
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
   const headerText =
-    type === 'deposit' ? `Deposit BLND-USDC LP` : `Queue BLND-USDC LP for Withdrawal`;
+    type === 'deposit' ? `Deposit ${lpSymbol}` : `Queue ${lpSymbol} for Withdrawal`;
   return (
     <Box
       sx={{

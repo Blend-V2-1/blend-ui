@@ -19,7 +19,7 @@ import {
   useTokenBalance,
   useTokenMetadata,
 } from '../hooks/api';
-import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 import { estimateEmissionsApr } from '../utils/math';
 
@@ -44,7 +44,7 @@ const Repay: NextPage = () => {
     reserve !== undefined
   );
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
 
   const emissionsPerAsset =
     reserve && reserve.borrowEmissions !== undefined
@@ -107,7 +107,7 @@ const Repay: NextPage = () => {
                 <RateDisplay
                   assetSymbol={symbol}
                   assetRate={reserve.estBorrowApy}
-                  emissionSymbol={'BLND'}
+                  emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
                   emissionApr={emissionApr}
                   rateType={'charged'}
                   direction={'horizontal'}

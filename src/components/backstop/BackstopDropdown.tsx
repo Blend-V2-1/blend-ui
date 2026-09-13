@@ -41,7 +41,7 @@ export const BackstopDropdown: React.FC<BackstopComponentProps> = ({ type, poolI
         onClick={handleClick}
         sx={{ width: '100%', '&:hover': { backgroundColor: theme.palette.background.default } }}
       >
-        <BackstopHeader type={type} />
+        <BackstopHeader type={type} poolId={poolId} />
         <ArrowDropDownIcon sx={{ color: theme.palette.text.secondary }} />
       </CustomButton>
       <Menu
@@ -55,10 +55,10 @@ export const BackstopDropdown: React.FC<BackstopComponentProps> = ({ type, poolI
         }}
       >
         <MenuItem onClick={() => handleSelectItem('deposit')}>
-          <BackstopHeader type="deposit" />
+          <BackstopHeader type="deposit" poolId={poolId} />
         </MenuItem>
         <MenuItem onClick={() => handleSelectItem('q4w')}>
-          <BackstopHeader type="q4w" />
+          <BackstopHeader type="q4w" poolId={poolId} />
         </MenuItem>
       </Menu>
     </>

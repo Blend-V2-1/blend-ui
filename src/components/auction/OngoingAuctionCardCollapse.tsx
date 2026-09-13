@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, usePoolOracle, usePoolUser } from '../../hooks/api';
+import { getPoolDeployment } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estAuction } from '../../utils/auction';
 import { toBalance, toPercentage } from '../../utils/formatter';
@@ -55,7 +56,7 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
   const { viewType } = useSettings();
   const { walletAddress, connected, poolSubmit, isLoading, txType, txStatus } = useWallet();
   const { data: poolOracle } = usePoolOracle(pool, expanded);
-  const { data: backstop } = useBackstop(pool.version, expanded);
+  const { data: backstop } = useBackstop(getPoolDeployment(pool.metadata), expanded);
   const { data: poolUser } = usePoolUser(pool, expanded);
 
   const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
@@ -135,7 +136,12 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
     };
 
     let response = await poolSubmit(
-      { id: pool.id, version: pool.version, ...pool.metadata },
+      {
+        id: pool.id,
+        version: pool.version,
+        deployment: getPoolDeployment(pool.metadata)!,
+        ...pool.metadata,
+      },
       submitArgs,
       sim
     );

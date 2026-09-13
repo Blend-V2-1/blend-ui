@@ -3,6 +3,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useMemo } from 'react';
 import { useBackstop, usePoolOracle } from '../../hooks/api';
+import { getPoolDeployment } from '../../hooks/types';
 import { estAuction } from '../../utils/auction';
 import { toCompactAddress } from '../../utils/formatter';
 import { DividerSection } from '../common/DividerSection';
@@ -23,7 +24,7 @@ export interface FilledAuctionCardProps extends PoolComponentProps {
 export const FilledAuctionCard: React.FC<FilledAuctionCardProps> = ({ pool, auction, sx }) => {
   const theme = useTheme();
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(pool.version);
+  const { data: backstop } = useBackstop(getPoolDeployment(pool.metadata));
 
   const { auctionEstimate } = useMemo(() => {
     const auctionEstimate = estAuction(

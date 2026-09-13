@@ -17,7 +17,7 @@ import {
   usePoolMeta,
   useTokenBalance,
 } from '../hooks/api';
-import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toPercentage } from '../utils/formatter';
 
 const BackstopDeposit: NextPage = () => {
@@ -28,7 +28,7 @@ const BackstopDeposit: NextPage = () => {
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
 
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
-  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
   const { data: lpBalance } = useTokenBalance(
@@ -36,6 +36,7 @@ const BackstopDeposit: NextPage = () => {
     undefined,
     horizonAccount
   );
+  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined
@@ -77,7 +78,7 @@ const BackstopDeposit: NextPage = () => {
             </Box>
             <Box>
               <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-                BLND-USDC LP
+                {lpSymbol}
               </Typography>
             </Box>
           </Box>
