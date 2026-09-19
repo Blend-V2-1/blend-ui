@@ -34,8 +34,6 @@ export function getBackstopId(deployment: PoolDeploymentLike | undefined): strin
   return process.env.NEXT_PUBLIC_BACKSTOP || '';
 }
 
-export function getEmissionSymbol(deployment: PoolDeploymentLike | undefined): 'BLND' | 'BLNT' {
-  return deployment === PoolDeployment.V21 ? 'BLNT' : 'BLND';
-}
+export const EMISSION_SYMBOL = 'BLND' as const;
 
 export const NOT_BLEND_POOL_ERROR_MESSAGE = 'NOT_BLEND_POOL';

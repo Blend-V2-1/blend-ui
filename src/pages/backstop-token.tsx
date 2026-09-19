@@ -13,9 +13,9 @@ import { StackedText } from '../components/common/StackedText';
 import { ToggleButton } from '../components/common/ToggleButton';
 import { ViewType, useSettings } from '../contexts';
 import { useBackstop, useHorizonAccount, useTokenBalance } from '../hooks/api';
-import { getEmissionSymbol, PoolDeployment } from '../hooks/types';
+import { EMISSION_SYMBOL, PoolDeployment } from '../hooks/types';
 import { toBalance } from '../utils/formatter';
-import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../utils/token_display';
+import { BLND_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../utils/token_display';
 
 const BackstopToken: NextPage = () => {
   const theme = useTheme();
@@ -27,9 +27,9 @@ const BackstopToken: NextPage = () => {
       : router.query.deployment === PoolDeployment.V2
       ? PoolDeployment.V2
       : PoolDeployment.V1;
-  const emissionAsset = deployment === PoolDeployment.V21 ? BLNT_ASSET : BLND_ASSET;
+  const emissionAsset = BLND_ASSET;
   const usdcAsset = deployment === PoolDeployment.V21 ? V21_USDC_ASSET : USDC_ASSET;
-  const emissionSymbol = getEmissionSymbol(deployment);
+  const emissionSymbol = EMISSION_SYMBOL;
   const lpSymbol = `${emissionSymbol}-USDC LP`;
 
   const BLND_CONTRACT_ID = emissionAsset.contractId(network.passphrase);

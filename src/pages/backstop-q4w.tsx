@@ -12,7 +12,7 @@ import { Section, SectionSize } from '../components/common/Section';
 import { StackedText } from '../components/common/StackedText';
 import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../hooks/api';
-import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toPercentage } from '../utils/formatter';
 
 const BackstopQ4W: NextPage = () => {
@@ -26,7 +26,7 @@ const BackstopQ4W: NextPage = () => {
   const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: userBackstopPoolData } = useBackstopPoolUser(poolMeta);
-  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
+  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined

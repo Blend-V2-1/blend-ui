@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolMeta, useSimulateOperation } from '../../hooks/api';
-import { getBackstopId, getEmissionSymbol } from '../../hooks/types';
+import { getBackstopId, EMISSION_SYMBOL } from '../../hooks/types';
 import theme from '../../theme';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
 import { Icon } from '../common/Icon';
@@ -32,7 +32,7 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
   const { viewType } = useSettings();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
+  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
 
   const backstop =
     poolMeta?.version === Version.V2

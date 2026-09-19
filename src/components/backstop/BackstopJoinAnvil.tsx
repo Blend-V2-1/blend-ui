@@ -6,12 +6,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, useHorizonAccount, useTokenBalance } from '../../hooks/api';
-import { getEmissionSymbol, PoolDeployment } from '../../hooks/types';
+import { EMISSION_SYMBOL, PoolDeployment } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estJoinPool, estLPTokenViaJoin } from '../../utils/comet';
 import { toBalance } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { BLND_ASSET, BLNT_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../../utils/token_display';
+import { BLND_ASSET, USDC_ASSET, V21_USDC_ASSET } from '../../utils/token_display';
 import { SubmitError, getErrorFromSim } from '../../utils/txSim';
 import { AppImage as Image } from '../common/AppImage';
 import { AnvilAlert } from '../common/AnvilAlert';
@@ -36,9 +36,9 @@ export const BackstopJoinAnvil: React.FC<{ deployment: PoolDeployment }> = ({ de
     txInclusionFee,
   } = useWallet();
 
-  const emissionAsset = deployment === PoolDeployment.V21 ? BLNT_ASSET : BLND_ASSET;
+  const emissionAsset = BLND_ASSET;
   const usdcAsset = deployment === PoolDeployment.V21 ? V21_USDC_ASSET : USDC_ASSET;
-  const emissionSymbol = getEmissionSymbol(deployment);
+  const emissionSymbol = EMISSION_SYMBOL;
   const lpSymbol = `${emissionSymbol}-USDC LP`;
   const isV21 = deployment === PoolDeployment.V21;
   const BLND_ID = emissionAsset.contractId(network.passphrase);

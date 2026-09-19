@@ -1,6 +1,6 @@
 import { BackstopPoolEst, FixedMath, PoolEstimate } from '@blend-capital/blend-sdk';
 import { useBackstop, useBackstopPool, usePool, usePoolMeta, usePoolOracle } from '../../hooks/api';
-import { getEmissionSymbol } from '../../hooks/types';
+import { EMISSION_SYMBOL } from '../../hooks/types';
 import { estSingleSidedDeposit } from '../../utils/comet';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { RateDisplay } from '../common/RateDisplay';
@@ -12,7 +12,7 @@ export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: backstop } = useBackstop(poolMeta?.deployment);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
-  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
+  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
 
   let estBackstopApr: number | undefined = undefined;
   let backstopEmissionsApr: number | undefined = undefined;

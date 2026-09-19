@@ -17,7 +17,7 @@ import {
   usePoolMeta,
   useTokenBalance,
 } from '../hooks/api';
-import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toPercentage } from '../utils/formatter';
 
 const BackstopDeposit: NextPage = () => {
@@ -36,7 +36,7 @@ const BackstopDeposit: NextPage = () => {
     undefined,
     horizonAccount
   );
-  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
+  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined

@@ -1,6 +1,6 @@
 import { Box, BoxProps, Typography } from '@mui/material';
 import { usePoolMeta } from '../../hooks/api';
-import { getEmissionSymbol } from '../../hooks/types';
+import { EMISSION_SYMBOL } from '../../hooks/types';
 import { Icon } from '../common/Icon';
 
 export interface BackstopHeaderProps extends BoxProps {
@@ -10,7 +10,7 @@ export interface BackstopHeaderProps extends BoxProps {
 
 export const BackstopHeader: React.FC<BackstopHeaderProps> = ({ type, poolId, sx, ...props }) => {
   const { data: poolMeta } = usePoolMeta(poolId);
-  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
+  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
   const headerText =
     type === 'deposit' ? `Deposit ${lpSymbol}` : `Queue ${lpSymbol} for Withdrawal`;
   return (

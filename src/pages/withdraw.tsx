@@ -21,7 +21,7 @@ import {
   usePoolUser,
   useTokenMetadata,
 } from '../hooks/api';
-import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 import { estimateEmissionsApr } from '../utils/math';
 
@@ -170,7 +170,7 @@ const Withdraw: NextPage = () => {
                 <RateDisplay
                   assetSymbol={tokenSymbol}
                   assetRate={reserve.estSupplyApy}
-                  emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
+                  emissionSymbol={EMISSION_SYMBOL}
                   emissionApr={emissionApr}
                   rateType={'earned'}
                   direction={'horizontal'}

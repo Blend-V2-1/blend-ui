@@ -11,7 +11,7 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
-import { getEmissionSymbol } from '../../hooks/types';
+import { EMISSION_SYMBOL } from '../../hooks/types';
 import { estimateEmissionsApr } from '../../utils/math';
 import { CustomButton } from '../common/CustomButton';
 import { LinkBox } from '../common/LinkBox';
@@ -110,7 +110,7 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
             <RateDisplay
               assetSymbol={symbol}
               assetRate={reserve.estBorrowApy}
-              emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
+              emissionSymbol={EMISSION_SYMBOL}
               emissionApr={emissionApr}
               rateType={'charged'}
               direction="vertical"

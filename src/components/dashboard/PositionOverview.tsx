@@ -18,10 +18,10 @@ import {
   usePoolUser,
   useSimulateOperation,
 } from '../../hooks/api';
-import { getEmissionSymbol, PoolDeployment } from '../../hooks/types';
+import { EMISSION_SYMBOL } from '../../hooks/types';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
-import { BLND_ASSET, BLNT_ASSET } from '../../utils/token_display';
+import { BLND_ASSET } from '../../utils/token_display';
 import { CustomButton } from '../common/CustomButton';
 import { FlameIcon } from '../common/FlameIcon';
 import { Icon } from '../common/Icon';
@@ -64,8 +64,8 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     return <Skeleton />;
   }
 
-  const emissionAsset = poolMeta?.deployment === PoolDeployment.V21 ? BLNT_ASSET : BLND_ASSET;
-  const emissionSymbol = getEmissionSymbol(poolMeta?.deployment);
+  const emissionAsset = BLND_ASSET;
+  const emissionSymbol = EMISSION_SYMBOL;
   const hasEmissionTrustline = !requiresTrustline(account, emissionAsset);
   const isRestore =
     isLoading === false && simResult !== undefined && rpc.Api.isSimulationRestore(simResult);

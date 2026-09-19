@@ -43,16 +43,9 @@ import {
 } from '@tanstack/react-query';
 import { useSettings } from '../contexts';
 import { useWallet } from '../contexts/wallet';
-import { getContractTokenIcon, getStellarAssetTokenIcon } from '../external/icon-map';
+import { getContractTokenIcon } from '../external/icon-map';
 import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
-import {
-  BackfillEmissionsState,
-  BackfillSwapState,
-  BLNT_BACKFILL_ID,
-  loadBackfillEmissionsState,
-  loadBackfillSwapState,
-} from '../utils/blnt_backfill';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
 import {
@@ -87,8 +80,6 @@ export function useQueryClientCacheCleaner(): {
       predicate: (query) =>
         query.queryKey[0] === 'balance' ||
         query.queryKey[0] === 'account' ||
-        query.queryKey[0] === 'backfillEmissions' ||
-        query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
 
@@ -143,37 +134,6 @@ export function useCurrentBlockNumber(): UseQueryResult<number, Error> {
       const data = await rpc.getLatestLedger();
       return data.sequence;
     },
-  });
-}
-
-/** Fetch the connected wallet's immutable backfill allocation and live vesting state. */
-export function useBackfillEmissions(
-  enabled: boolean = true
-): UseQueryResult<BackfillEmissionsState, Error> {
-  const { network } = useSettings();
-  const { connected, walletAddress } = useWallet();
-
-  return useQuery({
-    staleTime: DEFAULT_STALE_TIME,
-    refetchInterval: DEFAULT_STALE_TIME,
-    queryKey: ['backfillEmissions', BLNT_BACKFILL_ID, walletAddress],
-    enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
-    queryFn: () => loadBackfillEmissionsState(network, BLNT_BACKFILL_ID, walletAddress),
-  });
-}
-
-/** Fetch the immutable token bindings and live BLND-to-BLNT conversion state. */
-export function useBackfillSwapState(
-  enabled: boolean = true
-): UseQueryResult<BackfillSwapState, Error> {
-  const { network } = useSettings();
-
-  return useQuery({
-    staleTime: DEFAULT_STALE_TIME,
-    refetchInterval: DEFAULT_STALE_TIME,
-    queryKey: ['backfillSwap', BLNT_BACKFILL_ID],
-    enabled: enabled && BLNT_BACKFILL_ID !== '',
-    queryFn: () => loadBackfillSwapState(network, BLNT_BACKFILL_ID),
   });
 }
 
@@ -719,9 +679,6 @@ function createTokenMetadataQuery(
       let tomlMetadata: TomlMetadata;
       if (tokenMetadata.asset !== undefined) {
         tomlMetadata = await getTokenMetadataFromTOML(horizon, tokenMetadata);
-        tomlMetadata.image =
-          getStellarAssetTokenIcon(tokenMetadata.asset.code, tokenMetadata.asset.issuer) ??
-          tomlMetadata.image;
       } else {
         tomlMetadata = {
           domain: undefined,

@@ -45,7 +45,7 @@ import {
 } from '../hooks/api';
 import {
   getBackstopId,
-  getEmissionSymbol,
+  EMISSION_SYMBOL,
   NOT_BLEND_POOL_ERROR_MESSAGE,
   PoolDeployment,
 } from '../hooks/types';
@@ -70,7 +70,7 @@ const Backstop: NextPage = () => {
     undefined,
     horizonAccount
   );
-  const emissionSymbol = getEmissionSymbol(poolMeta?.deployment);
+  const emissionSymbol = EMISSION_SYMBOL;
   const lpSymbol = `${emissionSymbol}-USDC LP`;
   const isV21 = poolMeta?.deployment === PoolDeployment.V21;
 

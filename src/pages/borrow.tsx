@@ -12,7 +12,7 @@ import { Section, SectionSize } from '../components/common/Section';
 import { StackedText } from '../components/common/StackedText';
 import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { useBackstop, usePool, usePoolMeta, usePoolOracle, useTokenMetadata } from '../hooks/api';
-import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 import { estimateEmissionsApr } from '../utils/math';
 import { getTokenLinkFromReserve } from '../utils/token';
@@ -121,7 +121,7 @@ const Borrow: NextPage = () => {
                 <RateDisplay
                   assetSymbol={tokenSymbol}
                   assetRate={reserve.estBorrowApy}
-                  emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
+                  emissionSymbol={EMISSION_SYMBOL}
                   emissionApr={emissionApr}
                   rateType={'charged'}
                   direction={'horizontal'}

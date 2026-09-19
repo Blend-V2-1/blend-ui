@@ -25,17 +25,6 @@ export function getContractTokenIcon(symbol: string): string {
   );
 }
 
-export function getStellarAssetTokenIcon(
-  code: string,
-  issuer: string | undefined
-): string | undefined {
-  if (code === 'BLNT' && issuer !== undefined && issuer === process.env.NEXT_PUBLIC_BLNT_ISSUER) {
-    return '/icons/tokens/blnd-yellow.svg';
-  }
-
-  return undefined;
-}
-
 export function getPoolIcon(poolAddress: string | undefined): string {
   return (
     typedIconMap.poolIcons?.find(

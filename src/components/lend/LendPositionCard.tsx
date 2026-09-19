@@ -10,7 +10,7 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
-import { getEmissionSymbol } from '../../hooks/types';
+import { EMISSION_SYMBOL } from '../../hooks/types';
 import * as formatter from '../../utils/formatter';
 import { estimateEmissionsApr } from '../../utils/math';
 import { LinkBox } from '../common/LinkBox';
@@ -114,7 +114,7 @@ export const LendPositionCard: React.FC<LendPositionCardProps> = ({
         <RateDisplay
           assetSymbol={symbol}
           assetRate={reserve.estSupplyApy}
-          emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
+          emissionSymbol={EMISSION_SYMBOL}
           emissionApr={emissionApr}
           rateType={'earned'}
           direction="vertical"

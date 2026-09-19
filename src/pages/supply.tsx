@@ -22,7 +22,7 @@ import {
   useTokenBalance,
   useTokenMetadata,
 } from '../hooks/api';
-import { getEmissionSymbol, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 import { estimateEmissionsApr } from '../utils/math';
 import { getTokenLinkFromReserve } from '../utils/token';
@@ -140,7 +140,7 @@ const Supply: NextPage = () => {
                 <RateDisplay
                   assetSymbol={symbol}
                   assetRate={reserve.estSupplyApy}
-                  emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
+                  emissionSymbol={EMISSION_SYMBOL}
                   emissionApr={emissionApr}
                   rateType={'earned'}
                   direction={'horizontal'}

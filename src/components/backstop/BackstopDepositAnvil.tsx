@@ -16,7 +16,7 @@ import {
   usePoolMeta,
   useTokenBalance,
 } from '../../hooks/api';
-import { getEmissionSymbol, PoolDeployment } from '../../hooks/types';
+import { EMISSION_SYMBOL, PoolDeployment } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance } from '../../utils/formatter';
 import { bigintToInput, scaleInputToBigInt } from '../../utils/scval';
@@ -49,7 +49,7 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
     // account is not needed for getting the LP token balance
     {} as Horizon.AccountResponse
   );
-  const lpSymbol = `${getEmissionSymbol(poolMeta?.deployment)}-USDC LP`;
+  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
   const isV21 = poolMeta?.deployment === PoolDeployment.V21;
 
   const [toDeposit, setToDeposit] = useState<string>('');

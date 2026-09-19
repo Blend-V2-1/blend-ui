@@ -28,11 +28,6 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
 import { useQueryClientCacheCleaner } from '../hooks/api';
 import { getBackstopId, PoolMeta } from '../hooks/types';
-import {
-  BLNT_BACKFILL_ID,
-  buildClaimBackfillOperation,
-  buildSwapBlndForBlntOperation,
-} from '../utils/blnt_backfill';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
 import { useSettings } from './settings';
 
@@ -93,15 +88,6 @@ export interface IWalletContext {
   backstopClaim(
     poolMeta: PoolMeta,
     args: BackstopClaimV1Args | BackstopClaimV2Args,
-    sim: boolean
-  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
-  backfillClaim(
-    user: string,
-    sim: boolean
-  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
-  backfillSwapBlndForBlnt(
-    user: string,
-    blntAmount: bigint,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   cometSingleSidedDeposit(
@@ -744,37 +730,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  /** Claim the connected wallet's currently vested BLNT backfill allocation. */
-  async function backfillClaim(
-    user: string,
-    sim: boolean
-  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
-    if (connected && BLNT_BACKFILL_ID !== '') {
-      const operation = buildClaimBackfillOperation(BLNT_BACKFILL_ID, user);
-      if (sim) {
-        return await simulateOperation(operation);
-      }
-      await invokeSorobanOperation(operation);
-      cleanWalletCache();
-    }
-  }
-
-  /** Burn two legacy BLND for each pre-funded BLNT sent to the connected wallet. */
-  async function backfillSwapBlndForBlnt(
-    user: string,
-    blntAmount: bigint,
-    sim: boolean
-  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
-    if (connected && BLNT_BACKFILL_ID !== '') {
-      const operation = buildSwapBlndForBlntOperation(BLNT_BACKFILL_ID, user, blntAmount);
-      if (sim) {
-        return await simulateOperation(operation);
-      }
-      await invokeSorobanOperation(operation);
-      cleanWalletCache();
-    }
-  }
-
   /**
    * Execute a single sided deposit against a comet pool
    * @param cometPoolId - The comet pool id
@@ -942,8 +897,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopQueueWithdrawal,
         backstopDequeueWithdrawal,
         backstopClaim,
-        backfillClaim,
-        backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,
         cometExit,

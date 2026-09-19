@@ -8,7 +8,7 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
-import { getEmissionSymbol } from '../../hooks/types';
+import { EMISSION_SYMBOL } from '../../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { estimateEmissionsApr } from '../../utils/math';
 import { LinkBox } from '../common/LinkBox';
@@ -83,7 +83,7 @@ export const AssetBorrowInfo: React.FC<ReserveComponentProps> = ({ poolId, asset
           <RateDisplay
             assetSymbol={tokenSymbol}
             assetRate={reserve.estBorrowApy}
-            emissionSymbol={getEmissionSymbol(poolMeta?.deployment)}
+            emissionSymbol={EMISSION_SYMBOL}
             emissionApr={emissionApr}
             rateType={'charged'}
             direction={'horizontal'}
