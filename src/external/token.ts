@@ -6,6 +6,7 @@ import {
   scValToNative,
   TransactionBuilder,
 } from '@stellar/stellar-sdk';
+import { SIMULATION_SOURCE_ACCOUNT } from '../utils/simulation';
 
 export async function getTokenBalance(
   stellar_rpc: rpc.Server,
@@ -14,7 +15,7 @@ export async function getTokenBalance(
   address: Address
 ): Promise<bigint> {
   // account does not get validated during simulateTx
-  const account = new Account('GANXGJV2RNOFMOSQ2DTI3RKDBAVERXUVFC27KW3RLVQCLB3RYNO3AAI4', '123');
+  const account = new Account(SIMULATION_SOURCE_ACCOUNT, '123');
   const tx_builder = new TransactionBuilder(account, {
     fee: '1000',
     timebounds: { minTime: 0, maxTime: 0 },

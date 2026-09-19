@@ -38,6 +38,7 @@ import {
   useBackstop,
   useBackstopPool,
   useBackstopPoolUser,
+  useEmitterBackstop,
   useHorizonAccount,
   usePoolMeta,
   useSimulateOperation,
@@ -50,7 +51,7 @@ import {
   PoolDeployment,
 } from '../hooks/types';
 import theme from '../theme';
-import { CometClient } from '../utils/comet';
+import { CometClient, estSingleSidedDeposit } from '../utils/comet';
 import { toBalance, toPercentage } from '../utils/formatter';
 
 const Backstop: NextPage = () => {
@@ -73,6 +74,8 @@ const Backstop: NextPage = () => {
   const emissionSymbol = EMISSION_SYMBOL;
   const lpSymbol = `${emissionSymbol}-USDC LP`;
   const isV21 = poolMeta?.deployment === PoolDeployment.V21;
+  const { data: emitterBackstop } = useEmitterBackstop(backstop, isV21);
+  const isV21MigrationPending = isV21 && backstop !== undefined && emitterBackstop !== backstop.id;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined
@@ -124,7 +127,10 @@ const Backstop: NextPage = () => {
     data: claimSimResult,
     isLoading: isClaimLoading,
     refetch: refetchClaimSim,
-  } = useSimulateOperation(claimOp, backstop !== undefined && claimOp !== '' && connected);
+  } = useSimulateOperation(
+    claimOp,
+    backstop !== undefined && claimOp !== '' && connected && !isV21MigrationPending
+  );
   const isRestore =
     isClaimLoading === false &&
     claimSimResult !== undefined &&
@@ -150,19 +156,25 @@ const Backstop: NextPage = () => {
 
   const { data: mintSimResult, refetch: refetchMintSim } = useSimulateOperation(
     lpMintEstOp ?? '',
-    lpMintEstOp !== undefined && !isRestore
+    lpMintEstOp !== undefined && !isRestore && !isV21MigrationPending
   );
-  let lpTokenEmissions: bigint = BigInt(0);
-  if (mintSimResult && rpc.Api.isSimulationSuccess(mintSimResult)) {
-    lpTokenEmissions =
-      parseResult(mintSimResult, (xdrString: string) => {
-        return scValToBigInt(xdr.ScVal.fromXDR(xdrString, 'base64'));
-      }) ?? BigInt(0);
+  let lpTokenEmissions = 0;
+  if (isV21MigrationPending && backstop !== undefined && backstopUserEst !== undefined) {
+    lpTokenEmissions = estSingleSidedDeposit(
+      'blnd',
+      backstop.backstopToken,
+      FixedMath.toFixed(backstopUserEst.emissions, 7)
+    );
+  } else if (mintSimResult && rpc.Api.isSimulationSuccess(mintSimResult)) {
+    const result = parseResult(mintSimResult, (xdrString: string) => {
+      return scValToBigInt(xdr.ScVal.fromXDR(xdrString, 'base64'));
+    });
+    lpTokenEmissions = result === undefined ? 0 : FixedMath.toFloat(result, 7);
   }
 
   const backstopClaimUSD =
     lpTokenEmissions && backstop?.backstopToken.lpTokenPrice
-      ? (Number(lpTokenEmissions) / 1e7) * backstop.backstopToken.lpTokenPrice
+      ? lpTokenEmissions * backstop.backstopToken.lpTokenPrice
       : undefined;
 
   const handleClaimEmissionsClick = async () => {
@@ -184,7 +196,46 @@ const Backstop: NextPage = () => {
   };
 
   const renderClaimButton = () => {
-    if (!isRestore && !isError)
+    if (isV21MigrationPending)
+      return (
+        <CustomButton
+          disabled
+          sx={{
+            width: '100%',
+            margin: '6px',
+            padding: '12px',
+            color: theme.palette.text.primary,
+            backgroundColor: theme.palette.background.default,
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+            <FlameIcon />
+            <Icon
+              src={`/icons/tokens/blndusdclp.svg`}
+              alt={`blndusdclp`}
+              sx={{ height: '30px', width: '30px', marginRight: '12px' }}
+            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'row' }}>
+                <Typography variant="h4" sx={{ marginRight: '6px' }}>
+                  {toBalance(lpTokenEmissions)}
+                </Typography>
+                <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
+                  {lpSymbol}
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                {`$${toBalance(backstopClaimUSD)}`}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.warning.main }}>
+                Pending emitter upgrade
+              </Typography>
+            </Box>
+          </Box>
+          <ArrowForwardIcon fontSize="inherit" />
+        </CustomButton>
+      );
+    else if (!isRestore && !isError)
       return (
         <CustomButton
           sx={{
@@ -209,7 +260,7 @@ const Backstop: NextPage = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                 <Typography variant="h4" sx={{ marginRight: '6px' }}>
-                  {toBalance(lpTokenEmissions, 7)}
+                  {toBalance(lpTokenEmissions)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
                   {lpSymbol}
@@ -417,7 +468,7 @@ const Backstop: NextPage = () => {
           </Section>
         </Row>
       )}
-      {!isRestore && lpTokenEmissions !== undefined && lpTokenEmissions > BigInt(0) && (
+      {!isRestore && ((connected && isV21MigrationPending) || lpTokenEmissions > 0) && (
         <Row>
           <Section
             width={SectionSize.FULL}

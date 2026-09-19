@@ -8,6 +8,7 @@ import {
   TransactionBuilder,
   xdr,
 } from '@stellar/stellar-sdk';
+import { SIMULATION_SOURCE_ACCOUNT } from './simulation';
 
 export async function createTxBuilder(
   stellar_rpc: rpc.Server,
@@ -34,7 +35,7 @@ export async function getOraclePrices(
   token_ids: string[]
 ): Promise<Map<string, PriceData>> {
   const stellarRpc = new rpc.Server(network.rpc, network.opts);
-  const account = new Account('GANXGJV2RNOFMOSQ2DTI3RKDBAVERXUVFC27KW3RLVQCLB3RYNO3AAI4', '123');
+  const account = new Account(SIMULATION_SOURCE_ACCOUNT, '123');
   const tx_builder = new TransactionBuilder(account, {
     fee: '1000',
     timebounds: { minTime: 0, maxTime: 0 },

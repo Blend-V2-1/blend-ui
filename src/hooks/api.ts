@@ -4,6 +4,7 @@ import {
   BackstopPoolUser,
   BackstopPoolV1,
   BackstopPoolV2,
+  EmitterContract,
   ErrorTypes,
   getOracleDecimals,
   Network,
@@ -46,6 +47,7 @@ import { useWallet } from '../contexts/wallet';
 import { getContractTokenIcon } from '../external/icon-map';
 import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
+import { SIMULATION_SOURCE_ACCOUNT } from '../utils/simulation';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
 import {
@@ -338,6 +340,47 @@ export function useBackstop(
     queryFn: async () => {
       return await Backstop.load(network, backstopId);
     },
+  });
+}
+
+/**
+ * Fetches the backstop currently recognized by a Blend emitter.
+ * @param backstop - The candidate backstop whose emitter should be queried
+ * @param enabled - Whether the query is enabled (optional - defaults to true)
+ * @returns Query result containing the emitter's current backstop address
+ */
+export function useEmitterBackstop(
+  backstop: Backstop | undefined,
+  enabled: boolean = true
+): UseQueryResult<string, Error> {
+  const { network } = useSettings();
+  const emitterId = backstop?.config.emitter ?? '';
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['emitterBackstop', emitterId],
+    enabled: enabled && emitterId !== '',
+    queryFn: async () => {
+      const operation = xdr.Operation.fromXDR(
+        new EmitterContract(emitterId).getBackstop(),
+        'base64'
+      );
+      const source = new Account(SIMULATION_SOURCE_ACCOUNT, '0');
+      const transaction = new TransactionBuilder(source, {
+        fee: BASE_FEE,
+        networkPassphrase: network.passphrase,
+        timebounds: { minTime: 0, maxTime: 0 },
+      })
+        .addOperation(operation)
+        .build();
+      const result = await new rpc.Server(network.rpc, network.opts).simulateTransaction(
+        transaction
+      );
+      if (rpc.Api.isSimulationSuccess(result) && result.result !== undefined) {
+        return EmitterContract.parsers.getBackstop(result.result.retval.toXDR('base64'));
+      }
+      throw new Error('Unable to load the emitter backstop');
+    },
+    refetchInterval: DEFAULT_STALE_TIME,
   });
 }
 

@@ -6,11 +6,13 @@ import {
   PositionsEstimate,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, SxProps, Theme, Tooltip, useTheme } from '@mui/material';
+import { Box, SxProps, Theme, Tooltip, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import {
+  useBackstop,
+  useEmitterBackstop,
   useHorizonAccount,
   usePool,
   usePoolMeta,
@@ -18,7 +20,7 @@ import {
   usePoolUser,
   useSimulateOperation,
 } from '../../hooks/api';
-import { EMISSION_SYMBOL } from '../../hooks/types';
+import { EMISSION_SYMBOL, PoolDeployment } from '../../hooks/types';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { BLND_ASSET } from '../../utils/token_display';
@@ -37,6 +39,10 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { connected, walletAddress, poolClaim, createTrustlines, restore } = useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
+  const isV21 = poolMeta?.deployment === PoolDeployment.V21;
+  const { data: backstop } = useBackstop(poolMeta?.deployment, isV21);
+  const { data: emitterBackstop } = useEmitterBackstop(backstop, isV21);
+  const isV21MigrationPending = isV21 && backstop !== undefined && emitterBackstop !== backstop.id;
   const { data: account, refetch: refechAccount } = useHorizonAccount();
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
@@ -58,7 +64,10 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     data: simResult,
     isLoading,
     refetch: refetchSim,
-  } = useSimulateOperation(sim_op, claimedTokens.length > 0 && sim_op !== '' && connected);
+  } = useSimulateOperation(
+    sim_op,
+    claimedTokens.length > 0 && sim_op !== '' && connected && !isV21MigrationPending
+  );
 
   if (pool === undefined || userPoolData === undefined) {
     return <Skeleton />;
@@ -104,7 +113,38 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   };
 
   function renderClaimButton() {
-    if (hasEmissionTrustline && !isRestore && !isError) {
+    if (isV21MigrationPending) {
+      return (
+        <Box sx={{ width: '100%' }}>
+          <CustomButton
+            disabled
+            sx={{
+              width: '100%',
+              padding: '12px',
+              color: theme.palette.text.primary,
+              backgroundColor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+              <FlameIcon />
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <StackedText
+                  title="Claim Pool Emissions"
+                  titleColor="inherit"
+                  text={`${toBalance(emissions)} ${emissionSymbol}`}
+                  textColor="inherit"
+                  type="large"
+                />
+                <Typography variant="body2" color={theme.palette.warning.main}>
+                  Pending emitter upgrade
+                </Typography>
+              </Box>
+            </Box>
+            <ArrowForwardIcon fontSize="inherit" />
+          </CustomButton>
+        </Box>
+      );
+    } else if (hasEmissionTrustline && !isRestore && !isError) {
       return (
         <CustomButton
           sx={{
