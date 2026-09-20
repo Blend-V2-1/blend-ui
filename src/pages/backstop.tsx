@@ -228,7 +228,7 @@ const Backstop: NextPage = () => {
                 {`$${toBalance(backstopClaimUSD)}`}
               </Typography>
               <Typography variant="body2" sx={{ color: theme.palette.warning.main }}>
-                Pending emitter upgrade
+                Pending emitter migration
               </Typography>
             </Box>
           </Box>

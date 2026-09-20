@@ -136,7 +136,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
                   type="large"
                 />
                 <Typography variant="body2" color={theme.palette.warning.main}>
-                  Pending emitter upgrade
+                  Pending emitter migration
                 </Typography>
               </Box>
             </Box>
