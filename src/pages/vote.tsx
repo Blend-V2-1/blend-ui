@@ -4,7 +4,6 @@ import {
   CircularProgress,
   FormControlLabel,
   LinearProgress,
-  Link,
   Radio,
   RadioGroup,
   Typography,
@@ -157,17 +156,6 @@ const VotePage: NextPage = () => {
         <Typography variant="h1">Blend LP Vote</Typography>
         <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           A non-binding signal weighted by pre-incident BLND:USDC Comet V1 LP shares.
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          These questions pertain to the{' '}
-          <Link
-            href="https://github.com/blend-capital/blend-contracts-v2/discussions/64"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Blend V2.1 proposal on GitHub
-          </Link>
-          .
         </Typography>
       </Row>
       <Divider />

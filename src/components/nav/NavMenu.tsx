@@ -15,9 +15,6 @@ export const NavMenu = () => {
   const { data: backstop } = useBackstop(Version.V1, lastPool == undefined);
   const poolId = (lastPool ? lastPool.id : backstop?.config?.rewardZone[0]) ?? '';
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
-  const voteConfigured = Boolean(
-    process.env.NEXT_PUBLIC_VOTE_CONTRACTS || process.env.NEXT_PUBLIC_VOTE_CONTRACT
-  );
 
   const [openCon, setOpenCon] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -59,13 +56,6 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
-          {voteConfigured && (
-            <Link href="/vote">
-              <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
-                Vote
-              </MenuItem>
-            </Link>
-          )}
           <Link href={{ pathname: '/auction', query: { poolId: safePoolId } }}>
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Auctions
@@ -148,14 +138,6 @@ export const NavMenu = () => {
             title="Auctions"
             sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
           />
-          {voteConfigured && (
-            <NavItem
-              onClick={handleClose}
-              to={{ pathname: '/vote' }}
-              title="Vote"
-              sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
-            />
-          )}
           <a href="https://core.allbridge.io/" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}

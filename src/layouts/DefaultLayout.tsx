@@ -4,6 +4,7 @@ import { ReactNode, useEffect } from 'react';
 import { OverlayModal } from '../components/common/OverlayModal';
 import { OverlayModalTOS } from '../components/common/OverlayModalTOS';
 import { Row } from '../components/common/Row';
+import { V21TestnetBanner } from '../components/common/V21TestnetBanner';
 import { WalletWarning } from '../components/common/WalletWarning';
 import { NavBar } from '../components/nav/NavBar';
 import { useSettings, ViewType } from '../contexts';
@@ -58,6 +59,7 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
       <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
         <Box />
         <Box component="main" sx={{ width: mainWidth, minWidth: '350px' }}>
+          <V21TestnetBanner />
           <NavBar />
           <Box sx={{ marginLeft: mainMargin, marginRight: mainMargin }}>
             <Row>
