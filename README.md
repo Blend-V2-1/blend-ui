@@ -20,7 +20,7 @@ The testnet configuration is located at `.env.testnet`. To build the testnet ver
 npm run build:testnet
 ```
 
-When `NEXT_PUBLIC_VOTE_CONTRACT` is set, the navigation menu includes the snapshot-weighted Vote page for that contract deployment.
+When `NEXT_PUBLIC_VOTE_CONTRACTS` is set to a comma-separated list of contract IDs, the navigation menu includes the snapshot-weighted Vote page and displays each contract as a separate poll. The legacy `NEXT_PUBLIC_VOTE_CONTRACT` variable is also supported for a single poll.
 
 #### Mainnet
 

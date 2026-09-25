@@ -15,6 +15,9 @@ export const NavMenu = () => {
   const { data: backstop } = useBackstop(Version.V1, lastPool == undefined);
   const poolId = (lastPool ? lastPool.id : backstop?.config?.rewardZone[0]) ?? '';
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
+  const voteConfigured = Boolean(
+    process.env.NEXT_PUBLIC_VOTE_CONTRACTS || process.env.NEXT_PUBLIC_VOTE_CONTRACT
+  );
 
   const [openCon, setOpenCon] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -56,7 +59,7 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
-          {process.env.NEXT_PUBLIC_VOTE_CONTRACT && (
+          {voteConfigured && (
             <Link href="/vote">
               <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
                 Vote
@@ -145,7 +148,7 @@ export const NavMenu = () => {
             title="Auctions"
             sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
           />
-          {process.env.NEXT_PUBLIC_VOTE_CONTRACT && (
+          {voteConfigured && (
             <NavItem
               onClick={handleClose}
               to={{ pathname: '/vote' }}
