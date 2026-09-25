@@ -20,6 +20,8 @@ The testnet configuration is located at `.env.testnet`. To build the testnet ver
 npm run build:testnet
 ```
 
+When `NEXT_PUBLIC_VOTE_CONTRACT` is set, the navigation menu includes the snapshot-weighted Vote page for that contract deployment.
+
 #### Mainnet
 
 The mainnet configuration is located at `.env.production`. To build the mainnet version, run:

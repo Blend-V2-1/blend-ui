@@ -56,6 +56,13 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          {process.env.NEXT_PUBLIC_VOTE_CONTRACT && (
+            <Link href="/vote">
+              <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+                Vote
+              </MenuItem>
+            </Link>
+          )}
           <Link href={{ pathname: '/auction', query: { poolId: safePoolId } }}>
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Auctions
@@ -138,6 +145,14 @@ export const NavMenu = () => {
             title="Auctions"
             sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
           />
+          {process.env.NEXT_PUBLIC_VOTE_CONTRACT && (
+            <NavItem
+              onClick={handleClose}
+              to={{ pathname: '/vote' }}
+              title="Vote"
+              sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
+            />
+          )}
           <a href="https://core.allbridge.io/" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}

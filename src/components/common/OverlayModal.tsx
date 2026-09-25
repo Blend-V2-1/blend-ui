@@ -41,6 +41,8 @@ export const OverlayModal: React.FC = () => {
           pathname: `/auction`,
           query: { poolId: lastPoolId },
         });
+      } else if (router.route.includes('vote')) {
+        router.push({ pathname: '/vote' });
       } else {
         router.push({
           pathname: `/dashboard`,

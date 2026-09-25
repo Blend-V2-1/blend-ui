@@ -107,6 +107,7 @@ export interface IWalletContext {
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   faucet(): Promise<undefined>;
   createTrustlines(asset: Asset[]): Promise<void>;
+  invokeContract(operation: xdr.Operation): Promise<boolean>;
   getNetworkDetails(): Promise<Network & { horizonUrl: string }>;
   setTxInclusionFee: (inclusionFee: InclusionFee) => void;
 }
@@ -483,7 +484,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  async function invokeSorobanOperation<T>(operation: xdr.Operation) {
+  async function invokeSorobanOperation<T>(operation: xdr.Operation): Promise<boolean> {
     try {
       const account = await stellarRpc.getAccount(walletAddress);
       const tx_builder = new TransactionBuilder(account, {
@@ -498,12 +499,22 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       console.log('Sending transaction to wallet: ', extended_tx);
       const signedTx = await sign(extended_tx);
       const tx = new Transaction(signedTx, network.passphrase);
-      await sendTransaction(tx);
+      return await sendTransaction(tx);
     } catch (e: any) {
       console.error('Unknown error submitting transaction: ', e);
       setFailureMessage(e?.message);
       setTxStatus(TxStatus.FAIL);
+      return false;
     }
+  }
+
+  async function invokeContract(operation: xdr.Operation): Promise<boolean> {
+    if (!connected) {
+      setFailureMessage('Connect a wallet before submitting a transaction.');
+      setTxStatus(TxStatus.FAIL);
+      return false;
+    }
+    return await invokeSorobanOperation(operation);
   }
 
   function clearLastTx() {
@@ -902,6 +913,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         cometExit,
         faucet,
         createTrustlines,
+        invokeContract,
         getNetworkDetails,
         setTxInclusionFee,
       }}
