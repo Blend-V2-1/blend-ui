@@ -6,14 +6,14 @@ import { Banner } from './Banner';
 
 const PROPOSAL_URL = 'https://github.com/blend-capital/blend-contracts-v2/discussions/64';
 
-export const V21TestnetBanner = () => {
+export const V21MainnetBanner = () => {
   const theme = useTheme();
-  const isTestnet = process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET;
+  const isMainnet = process.env.NEXT_PUBLIC_PASSPHRASE === Networks.PUBLIC;
   const voteConfigured = Boolean(
     process.env.NEXT_PUBLIC_VOTE_CONTRACTS || process.env.NEXT_PUBLIC_VOTE_CONTRACT
   );
 
-  if (!isTestnet || !voteConfigured) return null;
+  if (!isMainnet || !voteConfigured) return null;
 
   const actionSx = {
     display: 'inline-flex',
@@ -39,8 +39,8 @@ export const V21TestnetBanner = () => {
         gap: '12px',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        backgroundColor: theme.palette.warning.opaque,
-        border: `1px solid ${theme.palette.warning.main}`,
+        backgroundColor: theme.palette.primary.opaque,
+        border: `1px solid ${theme.palette.primary.main}`,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 520px' }}>
@@ -49,18 +49,18 @@ export const V21TestnetBanner = () => {
           sx={{
             borderRadius: '4px',
             padding: '3px 7px',
-            backgroundColor: theme.palette.warning.main,
+            backgroundColor: theme.palette.primary.main,
             color: theme.palette.background.default,
             fontSize: '0.75rem',
             fontWeight: 700,
             letterSpacing: '0.04em',
           }}
         >
-          TESTNET
+          MAINNET
         </Box>
         <Typography variant="body2">
-          Blend V2.1 is deployed on Stellar testnet for evaluation. Pre-incident BLND:USDC Comet V1
-          LP holders can vote on V2.1 adoption and migration questions.
+          Blend V2.1 is deployed on Stellar mainnet. Pre-incident BLND:USDC Comet V1 LP holders can
+          vote on V2.1 adoption and migration questions.
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -71,8 +71,8 @@ export const V21TestnetBanner = () => {
           rel="noreferrer"
           sx={{
             ...actionSx,
-            border: `1px solid ${theme.palette.warning.main}`,
-            '&:hover': { backgroundColor: theme.palette.warning.opaque },
+            border: `1px solid ${theme.palette.primary.main}`,
+            '&:hover': { backgroundColor: theme.palette.primary.opaque },
           }}
         >
           View proposal

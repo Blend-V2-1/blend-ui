@@ -22,6 +22,9 @@ import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { Skeleton } from '../common/Skeleton';
 import { TxFeeSelector } from '../common/TxFeeSelector';
+import { TxOverview } from '../common/TxOverview';
+import { Value } from '../common/Value';
+import { ValueChange } from '../common/ValueChange';
 
 export const BackstopJoinAnvil: React.FC<{ deployment: PoolDeployment }> = ({ deployment }) => {
   const theme = useTheme();
@@ -538,12 +541,12 @@ export const BackstopJoinAnvil: React.FC<{ deployment: PoolDeployment }> = ({ de
           <AnvilAlert
             severity={'warning'}
             message={
-              'Depositing into the BLND-USDC LP is currently disabled due to an issue in the underlying protocol Comet.'
+              'Depositing into the V1-2 BLND-USDC LP is disabled due to an issue in the underlying protocol Comet. Switch to V2.1 to join the new LP.'
             }
             extraContent={undefined}
           />
         )}
-        {/* {!isError && (
+        {isV21 && !isError && (
           <TxOverview>
             <>
               {' '}
@@ -607,9 +610,9 @@ export const BackstopJoinAnvil: React.FC<{ deployment: PoolDeployment }> = ({ de
             </>
           </TxOverview>
         )}
-        {isError && (
+        {isV21 && isError && (
           <AnvilAlert severity={disabledType} message={reason} extraContent={extraContent} />
-        )} */}
+        )}
       </Section>
     </Row>
   );

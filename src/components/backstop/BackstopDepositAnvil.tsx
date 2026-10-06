@@ -31,6 +31,9 @@ import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { Skeleton } from '../common/Skeleton';
 import { TxFeeSelector } from '../common/TxFeeSelector';
+import { TxOverview } from '../common/TxOverview';
+import { Value } from '../common/Value';
+import { ValueChange } from '../common/ValueChange';
 
 export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) => {
   const theme = useTheme();
@@ -211,7 +214,7 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
             extraContent={undefined}
           />
         )}
-        {/* {!isError && (
+        {isV21 && !isError && (
           <TxOverview>
             <>
               <Value title="Amount to deposit" value={`${toDeposit ?? '0'} BLND-USDC LP`} />
@@ -239,9 +242,9 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
             </>
           </TxOverview>
         )}
-        {isError && (
+        {isV21 && isError && (
           <AnvilAlert severity={disabledType} message={reason} extraContent={extraContent} />
-        )} */}
+        )}
       </Section>
     </Row>
   );
