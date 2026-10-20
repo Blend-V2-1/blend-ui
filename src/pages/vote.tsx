@@ -203,103 +203,127 @@ const VotePage: NextPage = () => {
             const selectedOption = selectedOptions[poll.contractId];
             const submitting = submittingContract === poll.contractId;
             const submissionPending = submittingContract !== undefined;
+            const canVote = connected && poll.allocation > ZERO;
             const showResults = !connected || poll.allocation === ZERO || poll.currentVote !== null;
+            const displayedOption = selectedOption ?? poll.currentVote?.option;
+
+            const optionCards = poll.results.options.map((option) => {
+              const percent = Number(option.percentOfCast7dp) / PERCENT_DECIMALS;
+              const selected = displayedOption === option.option;
+              const content = (
+                <Box sx={{ flex: 1 }}>
+                  <Row
+                    sx={{
+                      alignItems: 'center',
+                      marginBottom: showResults ? '8px' : 0,
+                      gap: '12px',
+                    }}
+                  >
+                    <Typography variant="h3">{option.label}</Typography>
+                    {showResults && (
+                      <Typography variant="h3">{formatPercent(option.percentOfCast7dp)}</Typography>
+                    )}
+                  </Row>
+                  {showResults && (
+                    <>
+                      <LinearProgress
+                        variant="determinate"
+                        value={percent}
+                        sx={{ height: '14px', borderRadius: '7px', marginBottom: '8px' }}
+                      />
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                        {formatShares(option.shares)} LP shares · {option.voterCount}{' '}
+                        {option.voterCount === 1 ? 'voter' : 'voters'}
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+              );
+              const cardStyle = {
+                border: `1px solid ${selected ? theme.palette.primary.main : '#363A43'}`,
+                borderRadius: '6px',
+                margin: 0,
+                overflow: 'hidden',
+                padding: canVote ? '10px 14px 10px 4px' : '14px',
+              };
+
+              return canVote ? (
+                <FormControlLabel
+                  key={option.option}
+                  value={option.option}
+                  control={<Radio />}
+                  label={content}
+                  sx={{
+                    ...cardStyle,
+                    alignItems: 'center',
+                    '& .MuiFormControlLabel-label': { flex: 1 },
+                  }}
+                />
+              ) : (
+                <Box key={option.option} sx={cardStyle}>
+                  {content}
+                </Box>
+              );
+            });
 
             return (
               <Box key={poll.contractId}>
-                {connected && poll.allocation > ZERO && poll.currentVote === null && (
-                  <Section
-                    width={SectionSize.FULL}
-                    dir="column"
-                    sx={{ padding: '18px', gap: '16px', alignItems: 'stretch' }}
-                  >
+                <Section
+                  width={SectionSize.FULL}
+                  dir="column"
+                  sx={{ padding: '18px', gap: '16px', alignItems: 'stretch' }}
+                >
+                  <Box>
                     <Typography variant="h2">{poll.config.proposal}</Typography>
+                    {showResults && (
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                        {formatShares(poll.results.totalVotedShares)} of{' '}
+                        {formatShares(poll.results.totalEligibleShares)} eligible LP shares have
+                        voted.
+                      </Typography>
+                    )}
+                    {poll.currentVote && (
+                      <Typography variant="body2" sx={{ color: theme.palette.primary.main }}>
+                        You voted “{poll.config.options[poll.currentVote.option]}” with{' '}
+                        {formatShares(poll.currentVote.shares)} LP shares.
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {canVote ? (
                     <RadioGroup
-                      value={selectedOption ?? ''}
+                      value={selectedOption ?? poll.currentVote?.option ?? ''}
                       onChange={(event) =>
                         setSelectedOptions((current) => ({
                           ...current,
                           [poll.contractId]: Number(event.target.value),
                         }))
                       }
+                      sx={{ gap: '12px' }}
                     >
-                      {poll.config.options.map((option, index) => (
-                        <FormControlLabel
-                          key={option}
-                          value={index}
-                          control={<Radio />}
-                          label={option}
-                        />
-                      ))}
+                      {optionCards}
                     </RadioGroup>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {optionCards}
+                    </Box>
+                  )}
+
+                  {canVote && (
                     <OpaqueButton
                       palette={theme.palette.primary}
-                      disabled={selectedOption === undefined || submissionPending}
+                      disabled={
+                        selectedOption === undefined ||
+                        selectedOption === poll.currentVote?.option ||
+                        submissionPending
+                      }
                       onClick={() => handleVote(poll)}
                       sx={{ width: '180px' }}
                     >
-                      {submitting ? 'Submitting…' : 'Vote'}
+                      {submitting ? 'Submitting…' : poll.currentVote ? 'Change vote' : 'Vote'}
                     </OpaqueButton>
-                  </Section>
-                )}
-
-                {showResults && (
-                  <Section
-                    width={SectionSize.FULL}
-                    dir="column"
-                    sx={{ padding: '18px', gap: '16px', alignItems: 'stretch' }}
-                  >
-                    <Box>
-                      <Typography variant="h2">{poll.config.proposal}</Typography>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                        {formatShares(poll.results.totalVotedShares)} of{' '}
-                        {formatShares(poll.results.totalEligibleShares)} eligible LP shares have
-                        voted.
-                      </Typography>
-                      {poll.currentVote && (
-                        <Typography variant="body2" sx={{ color: theme.palette.primary.main }}>
-                          You voted “{poll.config.options[poll.currentVote.option]}” with{' '}
-                          {formatShares(poll.currentVote.shares)} LP shares.
-                        </Typography>
-                      )}
-                    </Box>
-
-                    {poll.results.options.map((option) => {
-                      const percent = Number(option.percentOfCast7dp) / PERCENT_DECIMALS;
-                      return (
-                        <Box
-                          key={option.option}
-                          sx={{
-                            border: `1px solid ${
-                              poll.currentVote?.option === option.option
-                                ? theme.palette.primary.main
-                                : '#363A43'
-                            }`,
-                            borderRadius: '6px',
-                            overflow: 'hidden',
-                            padding: '14px',
-                          }}
-                        >
-                          <Row sx={{ alignItems: 'center', marginBottom: '8px', gap: '12px' }}>
-                            <Typography variant="h3">{option.label}</Typography>
-                            <Typography variant="h3">
-                              {formatPercent(option.percentOfCast7dp)}
-                            </Typography>
-                          </Row>
-                          <LinearProgress
-                            variant="determinate"
-                            value={percent}
-                            sx={{ height: '14px', borderRadius: '7px', marginBottom: '8px' }}
-                          />
-                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                            {formatShares(option.shares)} LP shares · {option.voterCount}{' '}
-                            {option.voterCount === 1 ? 'voter' : 'voters'}
-                          </Typography>
-                        </Box>
-                      );
-                    })}
-                  </Section>
-                )}
+                  )}
+                </Section>
               </Box>
             );
           })}
