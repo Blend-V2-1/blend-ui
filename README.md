@@ -9,8 +9,10 @@ The Blend UI has network specific configurations and build commands, which all e
 To run the UI as a dev server, first build the UI to setup the local environment variables then run:
 
 ```bash
-npm run dev
+npm run dev -- -p 3002
 ```
+
+The default local URL for this `blnd.trade` UI is `http://localhost:3002`.
 
 #### Testnet
 
