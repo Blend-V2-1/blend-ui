@@ -31,6 +31,8 @@ export const OverlayModal: React.FC = () => {
     if (returnToHomePage && txType != TxType.PREREQ) {
       if (router.route == '/') {
         router.push({ pathname: '/' });
+      } else if (router.route === '/backfill' || router.route === '/backfill-swap') {
+        router.push({ pathname: '/backfill' });
       } else if (router.route.includes('backstop')) {
         router.push({
           pathname: `/backstop`,
@@ -41,8 +43,6 @@ export const OverlayModal: React.FC = () => {
           pathname: `/auction`,
           query: { poolId: lastPoolId },
         });
-      } else if (router.route.includes('vote')) {
-        router.push({ pathname: '/vote' });
       } else {
         router.push({
           pathname: `/dashboard`,

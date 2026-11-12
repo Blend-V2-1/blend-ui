@@ -1,6 +1,8 @@
 import {
   BackstopContractV1,
+  BackstopPoolUserV3,
   BackstopPoolUserEst,
+  BackstopPoolV3,
   FixedMath,
   parseResult,
   PoolBackstopActionArgs,
@@ -8,15 +10,14 @@ import {
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
-import { EMISSION_SYMBOL } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance } from '../../utils/formatter';
 import { getErrorFromSim, SubmitError } from '../../utils/txSim';
-import { AppImage as Image } from '../common/AppImage';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -45,10 +46,9 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   } = useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
-  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
 
   const [toQueue, setToQueue] = useState<string>('');
   const [toQueueShares, setToQueueShares] = useState<bigint>(BigInt(0));
@@ -89,7 +89,12 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
       return getErrorFromSim(toQueue, decimals, loading, simResponse, undefined);
     }, [simResponse, toQueue, backstopUserData, loading]);
 
-  if (backstop === undefined || backstopPoolData === undefined) {
+  if (
+    backstop === undefined ||
+    backstopPoolData === undefined ||
+    backstopPoolData instanceof BackstopPoolV3 ||
+    backstopUserData instanceof BackstopPoolUserV3
+  ) {
     return <Skeleton />;
   }
 
@@ -173,7 +178,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
             }}
           >
             <InputBar
-              symbol={lpSymbol}
+              symbol={'BLND-USDC LP'}
               value={toQueue}
               onValueChange={handleInputChange}
               palette={theme.palette.backstop}
@@ -238,7 +243,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
         {!isError && displayTxOverview && (
           <TxOverview>
             <>
-              <Value title="Amount to queue" value={`${toQueue ?? '0'} ${lpSymbol}`} />
+              <Value title="Amount to queue" value={`${toQueue ?? '0'} BLND-USDC LP`} />
               <Value
                 title={
                   <>
@@ -265,13 +270,13 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
 
               <ValueChange
                 title="Your total amount queued"
-                curValue={`${toBalance(currentTokensQ4WFloat)} ${lpSymbol}`}
+                curValue={`${toBalance(currentTokensQ4WFloat)} BLND-USDC LP`}
                 newValue={`${toBalance(
                   backstopUserEst && parsedSimResult
                     ? currentTokensQ4WFloat +
                         FixedMath.toFloat(parsedSimResult.amount, 7) * sharesToTokens
                     : 0
-                )} ${lpSymbol}`}
+                )} BLND-USDC LP`}
               />
             </>
           </TxOverview>

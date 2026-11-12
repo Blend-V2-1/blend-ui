@@ -1,10 +1,11 @@
-import { BackstopPoolEst } from '@blend-capital/blend-sdk';
+import { Backstop, BackstopPool, BackstopPoolEst } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { BackstopAPR } from '../components/backstop/BackstopAPR';
 import { BackstopDepositAnvil } from '../components/backstop/BackstopDepositAnvil';
 import { BackstopDropdown } from '../components/backstop/BackstopDropdown';
+import { BackstopV3Action, parseBackstopTier } from '../components/backstop/BackstopV3Action';
 import { GoBackHeader } from '../components/common/GoBackHeader';
 import { Row } from '../components/common/Row';
 import { Section, SectionSize } from '../components/common/Section';
@@ -17,8 +18,9 @@ import {
   usePoolMeta,
   useTokenBalance,
 } from '../hooks/api';
-import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toPercentage } from '../utils/formatter';
+import { Version } from '../utils/version';
 
 const BackstopDeposit: NextPage = () => {
   const theme = useTheme();
@@ -28,24 +30,34 @@ const BackstopDeposit: NextPage = () => {
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
 
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
-  const { data: backstopPoolData } = useBackstopPool(poolMeta);
+  const { data: loadedBackstop } = useBackstop(poolMeta?.version);
+  const { data: loadedBackstopPoolData } = useBackstopPool(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
   const { data: lpBalance } = useTokenBalance(
-    backstop?.backstopToken?.id ?? '',
+    loadedBackstop?.backstopToken?.id ?? '',
     undefined,
     horizonAccount
   );
-  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
-
-  const backstopPoolEst =
-    backstop !== undefined && backstopPoolData !== undefined
-      ? BackstopPoolEst.build(backstop.backstopToken, backstopPoolData.poolBalance)
-      : undefined;
 
   if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
     return <NotPoolBar poolId={safePoolId} />;
   }
+  if (poolMeta?.version === Version.V3) {
+    return (
+      <BackstopV3Action
+        poolMeta={poolMeta}
+        tier={parseBackstopTier(router.query.tier)}
+        type="deposit"
+      />
+    );
+  }
+
+  const backstop = loadedBackstop as Backstop | undefined;
+  const backstopPoolData = loadedBackstopPoolData as BackstopPool | undefined;
+  const backstopPoolEst =
+    backstop !== undefined && backstopPoolData !== undefined
+      ? BackstopPoolEst.build(backstop.backstopToken, backstopPoolData.poolBalance)
+      : undefined;
 
   return (
     <>
@@ -78,7 +90,7 @@ const BackstopDeposit: NextPage = () => {
             </Box>
             <Box>
               <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-                {lpSymbol}
+                BLND-USDC LP
               </Typography>
             </Box>
           </Box>

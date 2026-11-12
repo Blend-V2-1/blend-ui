@@ -1,4 +1,5 @@
 import {
+  BackstopPoolV3,
   ContractErrorType,
   parseError,
   PoolClaimArgs,
@@ -6,12 +7,13 @@ import {
   PositionsEstimate,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, SxProps, Theme, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, SxProps, Theme, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import {
   useBackstop,
+  useBackstopPool,
   useEmitterBackstop,
   useHorizonAccount,
   usePool,
@@ -20,10 +22,10 @@ import {
   usePoolUser,
   useSimulateOperation,
 } from '../../hooks/api';
-import { EMISSION_SYMBOL, PoolDeployment } from '../../hooks/types';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
-import { BLND_ASSET } from '../../utils/token_display';
+import { BLND_ASSET, BLNT_ASSET } from '../../utils/token_display';
+import { Version } from '../../utils/version';
 import { CustomButton } from '../common/CustomButton';
 import { FlameIcon } from '../common/FlameIcon';
 import { Icon } from '../common/Icon';
@@ -39,10 +41,21 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { connected, walletAddress, poolClaim, createTrustlines, restore } = useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const isV21 = poolMeta?.deployment === PoolDeployment.V21;
-  const { data: backstop } = useBackstop(poolMeta?.deployment, isV21);
+  const isV3 = poolMeta?.version === Version.V3;
+  const isV21 = poolMeta?.version === Version.V2_1;
+  const { data: backstop } = useBackstop(poolMeta?.version, isV21);
   const { data: emitterBackstop } = useEmitterBackstop(backstop, isV21);
   const isV21MigrationPending = isV21 && backstop !== undefined && emitterBackstop !== backstop.id;
+  const emissionsAsset = isV3 ? BLNT_ASSET : BLND_ASSET;
+  const { data: loadedBackstopPool } = useBackstopPool(poolMeta, isV3);
+  const backstopPoolV3 =
+    loadedBackstopPool instanceof BackstopPoolV3 ? loadedBackstopPool : undefined;
+  const showPoolEmissionsClaim =
+    !isV3 ||
+    (backstopPoolV3?.configuredTiers.some(
+      (tier) => backstopPoolV3.tier(tier).data.blnt_emission_eligible
+    ) ??
+      false);
   const { data: account, refetch: refechAccount } = useHorizonAccount();
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
@@ -66,16 +79,18 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
     refetch: refetchSim,
   } = useSimulateOperation(
     sim_op,
-    claimedTokens.length > 0 && sim_op !== '' && connected && !isV21MigrationPending
+    showPoolEmissionsClaim &&
+      claimedTokens.length > 0 &&
+      sim_op !== '' &&
+      connected &&
+      !isV21MigrationPending
   );
 
   if (pool === undefined || userPoolData === undefined) {
     return <Skeleton />;
   }
 
-  const emissionAsset = BLND_ASSET;
-  const emissionSymbol = EMISSION_SYMBOL;
-  const hasEmissionTrustline = !requiresTrustline(account, emissionAsset);
+  const hasEmissionsTrustline = !requiresTrustline(account, emissionsAsset);
   const isRestore =
     isLoading === false && simResult !== undefined && rpc.Api.isSimulationRestore(simResult);
   const isError =
@@ -100,7 +115,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
 
   async function handleCreateTrustlineClick() {
     if (connected) {
-      await createTrustlines([emissionAsset]);
+      await createTrustlines([emissionsAsset]);
       refechAccount();
     }
   }
@@ -131,7 +146,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
                 <StackedText
                   title="Claim Pool Emissions"
                   titleColor="inherit"
-                  text={`${toBalance(emissions)} ${emissionSymbol}`}
+                  text={`${toBalance(emissions)} ${emissionsAsset.code}`}
                   textColor="inherit"
                   type="large"
                 />
@@ -144,7 +159,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           </CustomButton>
         </Box>
       );
-    } else if (hasEmissionTrustline && !isRestore && !isError) {
+    } else if (hasEmissionsTrustline && !isRestore && !isError) {
       return (
         <CustomButton
           sx={{
@@ -163,7 +178,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
             <StackedText
               title="Claim Pool Emissions"
               titleColor="inherit"
-              text={`${toBalance(emissions)} ${emissionSymbol}`}
+              text={`${toBalance(emissions)} ${emissionsAsset.code}`}
               textColor="inherit"
               type="large"
             />
@@ -172,84 +187,70 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
         </CustomButton>
       );
     } else {
-      let disabled = false;
       let buttonText = '';
-      let buttonTooltip = undefined;
       let onClick = undefined;
       if (isRestore) {
         buttonText = 'Restore Data';
         onClick = handleRestore;
-      } else if (!hasEmissionTrustline) {
-        buttonText = `Add ${emissionSymbol} Trustline`;
+      } else if (!hasEmissionsTrustline) {
+        buttonText = `Add ${emissionsAsset.code} Trustline`;
         onClick = handleCreateTrustlineClick;
       } else if (isError) {
         const claimError = parseError(simResult);
-        buttonText = 'Error checking claim';
-        buttonTooltip = 'Erorr while checking claim amount: ' + ContractErrorType[claimError.type];
-        disabled = true;
+        buttonText = `Error checking claim: ${ContractErrorType[claimError.type]}`;
       }
       return (
-        <Tooltip
-          title={buttonTooltip}
-          placement="top-start"
-          enterTouchDelay={0}
-          enterDelay={500}
-          leaveTouchDelay={3000}
-        >
-          <Box sx={{ width: '100%' }}>
-            <CustomButton
+        <Box sx={{ width: '100%' }}>
+          <CustomButton
+            sx={{
+              width: '100%',
+              padding: '12px',
+              color: theme.palette.text.primary,
+              backgroundColor: theme.palette.background.paper,
+              '&:hover': {
+                color: theme.palette.warning.main,
+              },
+            }}
+            onClick={onClick}
+          >
+            <Box
               sx={{
-                width: '100%',
-                padding: '12px',
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.paper,
-                '&:hover': {
-                  color: theme.palette.warning.main,
-                },
+                display: 'flex',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                gap: '12px',
               }}
-              disabled={disabled}
-              onClick={onClick}
             >
               <Box
                 sx={{
+                  borderRadius: '50%',
+                  backgroundColor: theme.palette.warning.opaque,
+                  width: '32px',
+                  height: '32px',
                   display: 'flex',
-                  justifyContent: 'flex-start',
+                  justifyContent: 'center',
                   alignItems: 'center',
-                  gap: '12px',
                 }}
               >
-                <Box
-                  sx={{
-                    borderRadius: '50%',
-                    backgroundColor: theme.palette.warning.opaque,
-                    width: '32px',
-                    height: '32px',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Icon
-                    alt="BLND Token Icon"
-                    src="/icons/tokens/blnd-yellow.svg"
-                    height="24px"
-                    width="18px"
-                    isCircle={false}
-                  />
-                </Box>
-                <StackedText
-                  title="Claim Pool Emissions"
-                  titleColor="inherit"
-                  text={buttonText}
-                  textColor="inherit"
-                  type="large"
-                  tooltip={buttonTooltip}
+                <Icon
+                  alt="BLND Token Icon"
+                  src="/icons/tokens/blnd-yellow.svg"
+                  height="24px"
+                  width="18px"
+                  isCircle={false}
                 />
               </Box>
-              <ArrowForwardIcon fontSize="inherit" />
-            </CustomButton>
-          </Box>
-        </Tooltip>
+              <StackedText
+                title="Claim Pool Emissions"
+                titleColor="inherit"
+                text={buttonText}
+                textColor="inherit"
+                type="large"
+              />
+            </Box>
+            <ArrowForwardIcon fontSize="inherit" />
+          </CustomButton>
+        </Box>
       );
     }
   }
@@ -271,7 +272,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
-          width: isRegularViewType ? '50%' : '100%',
+          width: isRegularViewType && showPoolEmissionsClaim ? '50%' : '100%',
           justifyContent: isRegularViewType ? undefined : 'space-between',
         }}
       >
@@ -315,9 +316,11 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           <BorrowCapRing borrowLimit={userEst?.borrowLimit} />
         </Box>
       </Box>
-      <Box sx={{ width: isRegularViewType ? '45%' : '100%', display: 'flex' }}>
-        {renderClaimButton()}
-      </Box>
+      {showPoolEmissionsClaim && (
+        <Box sx={{ width: isRegularViewType ? '45%' : '100%', display: 'flex' }}>
+          {renderClaimButton()}
+        </Box>
+      )}
     </Row>
   );
 };

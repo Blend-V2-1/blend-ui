@@ -1,7 +1,6 @@
 import { Reserve } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
-import { EMISSION_SYMBOL, PoolDeployment } from '../../hooks/types';
 import { toBalance } from '../../utils/formatter';
 import { Icon } from '../common/Icon';
 import { TokenHeader } from '../common/TokenHeader';
@@ -11,14 +10,12 @@ export interface BidItemProps extends BoxProps {
   type: string;
   amount: bigint;
   oracleValue: number | undefined;
-  deployment: PoolDeployment | undefined;
 }
 export const BidListItem: React.FC<BidItemProps> = ({
   reserve,
   type,
   amount,
   oracleValue,
-  deployment,
   ...props
 }) => {
   const theme = useTheme();
@@ -56,7 +53,7 @@ export const BidListItem: React.FC<BidItemProps> = ({
             />
 
             <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-              {EMISSION_SYMBOL}-USDC LP
+              BLND-USDC LP
             </Typography>
           </Box>
         )}

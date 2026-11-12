@@ -1,10 +1,4 @@
-import {
-  BackstopPool,
-  BackstopPoolEst,
-  Pool,
-  PoolEstimate,
-  PoolOracle,
-} from '@blend-capital/blend-sdk';
+import { Pool, PoolEstimate, PoolOracle } from '@blend-capital/blend-sdk';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -20,20 +14,19 @@ import { StackedTextBox } from '../common/StackedTextBox';
 import { TooltipText } from '../common/TooltipText';
 import { PoolIcon } from '../pool/PoolIcon';
 import { ReserveList } from './ReserveList';
+import { BackstopPoolMetrics } from '../../utils/backstop';
 
 export interface MarketCardCollapseProps extends BoxProps {
   pool: Pool;
   oracle: PoolOracle | undefined;
   poolEst: PoolEstimate | undefined;
-  backstopPool: BackstopPool;
-  backstopPoolEst: BackstopPoolEst;
+  backstopPoolEst: BackstopPoolMetrics;
 }
 
 export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
   pool,
   oracle,
   poolEst,
-  backstopPool,
   backstopPoolEst,
   sx,
   ...props
@@ -41,7 +34,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
   const theme = useTheme();
   const { viewType } = useSettings();
 
-  const estBackstopApr = poolEst
+  const estBackstopApr = poolEst && backstopPoolEst.totalSpotValue > 0
     ? ((pool.metadata.backstopRate / 1e7) * poolEst.avgBorrowApy * poolEst.totalBorrowed) /
       backstopPoolEst.totalSpotValue
     : undefined;

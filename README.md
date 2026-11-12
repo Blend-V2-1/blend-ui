@@ -1,18 +1,51 @@
-# Blend UI
+# BLNT Trade UI — blnd.trade portal
 
-An open source UI for interacting with the Blend Protocol.
+The `blnd.trade` portal for the open-source BLNT Trade interface. It provides
+the same access to BLNT V3 and supported Blend markets as `blnt.trade`, while
+retaining its own domain and WalletConnect identity. BLNT V3 is an immutable
+lending protocol derived from Blend and designed to support real-world assets.
 
 ## Getting Started
 
 The Blend UI has network specific configurations and build commands, which all export the UI to `out/`.
 
-To run the UI as a dev server, first build the UI to setup the local environment variables then run:
+This interface consumes the adjacent `blnt-sdk-js` checkout. Build that SDK
+before installing or running the UI:
 
 ```bash
-npm run dev -- -p 3002
+cd ../blnt-sdk-js
+npm install
+npm run build
+cd ../blend-ui
+npm install
 ```
 
-The default local URL for this `blnd.trade` UI is `http://localhost:3002`.
+### Local development
+
+Run this portal checkout at `http://localhost:3002` by default. If another port
+is explicitly requested, substitute it for 3002 in the commands below. Before
+starting the UI, check whether a process is listening on the selected port:
+
+```bash
+lsof -nP -iTCP:3002 -sTCP:LISTEN
+```
+
+If the command reports a listener, terminate that exact PID gracefully and wait
+for the selected port to become available:
+
+```bash
+kill -TERM <PID>
+```
+
+Then start the UI on the selected local port:
+
+```bash
+npm run dev
+```
+
+Do not allow Next.js to select another port automatically when the selected
+port is occupied. For an explicitly requested override, run
+`npx next dev -p <port>`.
 
 #### Testnet
 
@@ -21,8 +54,6 @@ The testnet configuration is located at `.env.testnet`. To build the testnet ver
 ```bash
 npm run build:testnet
 ```
-
-When `NEXT_PUBLIC_VOTE_CONTRACTS` is set to a comma-separated list of contract IDs on the configured network, the snapshot-weighted Vote page displays each contract as a separate poll. Eligible voters may use the same form to cast an initial vote or change an existing vote when the configured contract supports updates. Mainnet builds also show a site-wide banner linking to the page. The legacy `NEXT_PUBLIC_VOTE_CONTRACT` variable is supported for a single poll.
 
 #### Mainnet
 
@@ -42,7 +73,7 @@ npm run build:testnet
 
 ## IPFS Deployment
 
-Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/blend-capital/blend-ui/releases).
+Each release gets deployed to IPFS automatically. To get the latest release, please see the [Releases page](https://github.com/blnt-protocol/blnt-ui/releases).
 
 ## Adding Custom Icons
 

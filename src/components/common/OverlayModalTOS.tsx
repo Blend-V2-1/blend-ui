@@ -3,26 +3,27 @@ import { useEffect, useState } from 'react';
 import { OpaqueButton } from './OpaqueButton';
 import { TOS } from './TOS';
 
+const TOS_VERSION = '2026-11-05';
+
 export const OverlayModalTOS: React.FC = () => {
   const theme = useTheme();
 
-  const [showTosModal, setShowTosModal] = useState(true);
+  const [showTosModal, setShowTosModal] = useState<boolean | undefined>(undefined);
   const handleAcknowledge = () => {
-    localStorage.setItem('acknowledgeTos', 'true');
+    localStorage.setItem('blntTosVersion', TOS_VERSION);
     setShowTosModal(false);
   };
   const handleCancel = () => {
-    window.open(`https://blend.capital`, '_self');
-    window.close();
+    window.location.replace('https://github.com/blnt-protocol');
   };
   useEffect(() => {
-    let returningUser = localStorage.getItem('acknowledgeTos');
-    setShowTosModal(!returningUser);
+    const acceptedVersion = localStorage.getItem('blntTosVersion');
+    setShowTosModal(acceptedVersion !== TOS_VERSION);
   }, []);
 
   return (
     <>
-      {showTosModal && (
+      {showTosModal !== false && (
         <Box
           sx={{
             width: '100%',
@@ -39,64 +40,70 @@ export const OverlayModalTOS: React.FC = () => {
             overflowY: 'scroll',
           }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              flexDirection: 'column',
-              marginTop: '18vh',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Typography variant="h2" sx={{ margin: '12px' }}>
-              Blend App Terms of Service
-            </Typography>
+          {showTosModal && (
             <Box
               sx={{
                 display: 'flex',
                 flexWrap: 'wrap',
                 flexDirection: 'column',
-                overflowY: 'scroll',
-                maxWidth: '500px',
-                height: 'clamp(150px, 50vh, 400px)',
-                padding: '12px',
-                margin: '12px',
+                marginTop: '18vh',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <TOS />
-            </Box>
-            <Box>
-              <OpaqueButton
-                onClick={handleCancel}
-                palette={theme.palette.error}
+              <Typography variant="h2" sx={{ margin: '12px' }}>
+                BLNT Trade Website and Interface Terms of Use
+              </Typography>
+              <Box
                 sx={{
-                  margin: '6px',
-                  padding: '6px',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  flexDirection: 'column',
+                  overflowY: 'scroll',
+                  maxWidth: '500px',
+                  height: 'clamp(150px, 50vh, 400px)',
+                  padding: '12px',
+                  margin: '12px',
                 }}
               >
-                <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
-                  <Box sx={{ lineHeight: '100%' }}>Reject</Box>
-                </Box>
-              </OpaqueButton>
-              <OpaqueButton
-                onClick={handleAcknowledge}
-                palette={theme.palette.primary}
-                sx={{
-                  margin: '6px',
-                  padding: '6px',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
-                  <Box sx={{ lineHeight: '100%' }}>Acknowledge</Box>
-                </Box>
-              </OpaqueButton>
+                <TOS />
+              </Box>
+              <Box>
+                <OpaqueButton
+                  onClick={handleCancel}
+                  palette={theme.palette.error}
+                  sx={{
+                    margin: '6px',
+                    padding: '6px',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Box
+                    sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}
+                  >
+                    <Box sx={{ lineHeight: '100%' }}>Reject</Box>
+                  </Box>
+                </OpaqueButton>
+                <OpaqueButton
+                  onClick={handleAcknowledge}
+                  palette={theme.palette.primary}
+                  sx={{
+                    margin: '6px',
+                    padding: '6px',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Box
+                    sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}
+                  >
+                    <Box sx={{ lineHeight: '100%' }}>Agree</Box>
+                  </Box>
+                </OpaqueButton>
+              </Box>
             </Box>
-          </Box>
+          )}
         </Box>
       )}
     </>

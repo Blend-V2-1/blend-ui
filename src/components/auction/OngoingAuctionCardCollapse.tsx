@@ -7,21 +7,24 @@ import {
   Positions,
   PositionsEstimate,
   RequestType,
+  RESERVE_BORROW_ALLOWED,
+  RESERVE_SUPPLY_ALLOWED,
   SubmitArgs,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
-import { useBackstop, usePoolOracle, usePoolUser } from '../../hooks/api';
-import { getPoolDeployment } from '../../hooks/types';
+import { useBackstop, usePoolOracle, usePoolPermissions, usePoolUser } from '../../hooks/api';
+import { PoolMeta } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { estAuction } from '../../utils/auction';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { getErrorFromSim } from '../../utils/txSim';
-import { AppImage as Image } from '../common/AppImage';
+import { getErrorFromSim, getPoolPermissionError } from '../../utils/txSim';
+import { getPoolDeploymentVersion, Version } from '../../utils/version';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { DividerSection } from '../common/DividerSection';
 import { InputBar } from '../common/InputBar';
@@ -55,8 +58,17 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
   const theme = useTheme();
   const { viewType } = useSettings();
   const { walletAddress, connected, poolSubmit, isLoading, txType, txStatus } = useWallet();
+  const poolMeta = useMemo(
+    () => ({ id: pool.id, version: getPoolDeploymentVersion(pool), ...pool.metadata } as PoolMeta),
+    [pool]
+  );
+  const {
+    data: poolPermissions,
+    isError: isPermissionError,
+    isLoading: isPermissionLoading,
+  } = usePoolPermissions(poolMeta, expanded && auction.type === AuctionType.Liquidation);
   const { data: poolOracle } = usePoolOracle(pool, expanded);
-  const { data: backstop } = useBackstop(getPoolDeployment(pool.metadata), expanded);
+  const { data: backstop } = useBackstop(poolMeta.version, expanded);
   const { data: poolUser } = usePoolUser(pool, expanded);
 
   const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
@@ -102,8 +114,30 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
     }, [auction, simResponse, currLedger, poolOracle, backstop, pool, parsedSimResult]);
 
   const { isSubmitDisabled, reason, disabledType, extraContent, isError } = useMemo(() => {
-    return getErrorFromSim(fillPercent, 0, loading, simResponse, undefined);
-  }, [isLoading, loadingEstimate, simResponse, theme.palette.warning]);
+    return getErrorFromSim(fillPercent, 0, loading, simResponse, () => {
+      if (auction.type !== AuctionType.Liquidation) return {};
+      return (
+        getPoolPermissionError(
+          poolMeta.version === Version.V3 && poolMeta.accessController !== undefined,
+          poolPermissions,
+          RESERVE_SUPPLY_ALLOWED | RESERVE_BORROW_ALLOWED,
+          isPermissionLoading,
+          isPermissionError,
+          'filling user-liquidation auctions'
+        ) ?? {}
+      );
+    });
+  }, [
+    fillPercent,
+    loading,
+    simResponse,
+    auction.type,
+    poolMeta.version,
+    poolMeta.accessController,
+    poolPermissions,
+    isPermissionLoading,
+    isPermissionError,
+  ]);
 
   const handleSubmitTransaction = async (sim: boolean) => {
     if (!connected || !expanded) return;
@@ -135,16 +169,7 @@ export const OngoingAuctionCardCollapse: React.FC<OngoingAuctionCardExpandedProp
       ],
     };
 
-    let response = await poolSubmit(
-      {
-        id: pool.id,
-        version: pool.version,
-        deployment: getPoolDeployment(pool.metadata)!,
-        ...pool.metadata,
-      },
-      submitArgs,
-      sim
-    );
+    let response = await poolSubmit(poolMeta, submitArgs, sim);
     if (response && sim) {
       setSimResponse(response);
       if (rpc.Api.isSimulationSuccess(response)) {

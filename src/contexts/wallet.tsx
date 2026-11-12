@@ -2,33 +2,42 @@ import {
   addReflectorEntries,
   BackstopClaimV1Args,
   BackstopClaimV2Args,
+  BackstopClaimArgsV3,
   BackstopContractV1,
   BackstopContractV2,
+  BackstopContractV3,
   ContractErrorType,
   Network,
   parseError,
   PoolBackstopActionArgs,
   PoolClaimArgs,
   PoolContractV2,
+  PoolContractV3,
   Positions,
   SubmitArgs,
-  Version,
+  TierBackstopActionArgsV3,
 } from '@blend-capital/blend-sdk';
 import { SwkAppDarkTheme } from '@creit.tech/stellar-wallets-kit';
-import {
-  Asset,
-  Networks,
-  Operation,
-  rpc,
-  Transaction,
-  TransactionBuilder,
-  xdr,
-} from '@stellar/stellar-sdk';
+import { Asset, Operation, rpc, Transaction, TransactionBuilder, xdr } from '@stellar/stellar-sdk';
 import React, { useContext, useEffect, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
 import { useQueryClientCacheCleaner } from '../hooks/api';
-import { getBackstopId, PoolMeta } from '../hooks/types';
+import { PoolMeta } from '../hooks/types';
+import {
+  BLNT_BACKFILL_ID,
+  BLNT_LOCKUP_BACKFILL_ID,
+  buildClaimAndFundOperation,
+  buildClaimBackfillOperation,
+  buildClaimGrantOperation,
+  buildClaimLockupBackfillOperation,
+  buildSwapBlndForBlntOperation,
+} from '../utils/blnt_backfill';
+import {
+  BLNT_BACKSTOP_MANAGER_HELPER_ID,
+  buildBackstopManagerDepositAndClaimOperation,
+} from '../utils/blnt_backstop_manager_helper';
 import { CometClient, CometLiquidityArgs, CometSingleSidedDepositArgs } from '../utils/comet';
+import { BACKSTOP_IDS, isV2Contracts, Version } from '../utils/version';
 import { useSettings } from './settings';
 
 type WalletKit = typeof import('@creit.tech/stellar-wallets-kit').StellarWalletsKit;
@@ -36,8 +45,56 @@ type WalletKitNetwork = import('@creit.tech/stellar-wallets-kit').Networks;
 type WalletConnectModuleInstance = import('@creit.tech/stellar-wallets-kit').ModuleInterface & {
   disconnect(): Promise<void>;
 };
+type BackstopActionArgs = PoolBackstopActionArgs | TierBackstopActionArgsV3;
+const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
+
+function usesV2Backstop(poolMeta: PoolMeta): boolean {
+  return isV2Contracts(poolMeta.version) || poolMeta.wasmHash === POOL_WASM_V2;
+}
+
+function backstopV2Id(poolMeta: PoolMeta): string {
+  return poolMeta.version === Version.V1
+    ? BACKSTOP_IDS[Version.V1]
+    : BACKSTOP_IDS[poolMeta.version];
+}
 
 const WALLET_CONNECT_ID = 'wallet_connect';
+const SOROBAN_INSTRUCTION_LEEWAY_PERCENT = BigInt(15);
+const PERCENT_SCALAR = BigInt(100);
+
+// A simulation can use a same-ledger reserve shortcut while execution in a later
+// ledger must accrue interest. Keep enough instruction and fee headroom for the
+// more expensive path without changing the simulated footprint.
+function addSorobanInstructionLeeway(transaction: Transaction): Transaction {
+  const sorobanData = transaction.toEnvelope().v1().tx().ext().sorobanData();
+  const resources = sorobanData.resources();
+  const instructions = BigInt(resources.instructions());
+  const resourceFee = sorobanData.resourceFee().toBigInt();
+  const totalFee = BigInt(transaction.fee);
+
+  if (resourceFee > totalFee) {
+    throw new Error('Soroban resource fee exceeds the transaction fee.');
+  }
+
+  const paddedInstructions =
+    (instructions * (PERCENT_SCALAR + SOROBAN_INSTRUCTION_LEEWAY_PERCENT) +
+      PERCENT_SCALAR -
+      BigInt(1)) /
+    PERCENT_SCALAR;
+  const paddedResourceFee =
+    (resourceFee * (PERCENT_SCALAR + SOROBAN_INSTRUCTION_LEEWAY_PERCENT) +
+      PERCENT_SCALAR -
+      BigInt(1)) /
+    PERCENT_SCALAR;
+
+  resources.instructions(Number(paddedInstructions));
+  sorobanData.resourceFee(xdr.Int64.fromString(paddedResourceFee.toString()));
+
+  return TransactionBuilder.cloneFrom(transaction, {
+    fee: (totalFee - resourceFee).toString(),
+    sorobanData,
+  }).build();
+}
 
 export interface IWalletContext {
   connected: boolean;
@@ -67,27 +124,48 @@ export interface IWalletContext {
   ) => Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backstopDeposit(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backstopWithdraw(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backstopQueueWithdrawal(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backstopDequeueWithdrawal(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   backstopClaim(
     poolMeta: PoolMeta,
-    args: BackstopClaimV1Args | BackstopClaimV2Args,
+    args: BackstopClaimV1Args | BackstopClaimV2Args | BackstopClaimArgsV3,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  contributorGrantClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  lockupBackfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  contributorClaimAndFund(sim: boolean): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backstopManagerDepositAndClaim(
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
+  backfillSwapBlndForBlnt(
+    user: string,
+    blntAmount: bigint,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
   cometSingleSidedDeposit(
@@ -105,9 +183,7 @@ export interface IWalletContext {
     args: CometLiquidityArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined>;
-  faucet(): Promise<undefined>;
   createTrustlines(asset: Asset[]): Promise<void>;
-  invokeContract(operation: xdr.Operation): Promise<boolean>;
   getNetworkDetails(): Promise<Network & { horizonUrl: string }>;
   setTxInclusionFee: (inclusionFee: InclusionFee) => void;
 }
@@ -463,18 +539,11 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  async function simulateOperation(
-    operation: xdr.Operation
+  async function simulateTransaction(
+    transaction: Transaction
   ): Promise<rpc.Api.SimulateTransactionResponse> {
     try {
       setLoading(true);
-      const account = await stellarRpc.getAccount(walletAddress);
-      const tx_builder = new TransactionBuilder(account, {
-        networkPassphrase: network.passphrase,
-        fee: txInclusionFee.fee,
-        timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 2 * 60 * 1000 },
-      }).addOperation(operation);
-      const transaction = tx_builder.build();
       const simulation = await stellarRpc.simulateTransaction(transaction);
       setLoading(false);
       return simulation;
@@ -484,7 +553,21 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  async function invokeSorobanOperation<T>(operation: xdr.Operation): Promise<boolean> {
+  async function simulateOperation(
+    operation: xdr.Operation
+  ): Promise<rpc.Api.SimulateTransactionResponse> {
+    const account = await stellarRpc.getAccount(walletAddress);
+    const transaction = new TransactionBuilder(account, {
+      networkPassphrase: network.passphrase,
+      fee: txInclusionFee.fee,
+      timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 2 * 60 * 1000 },
+    })
+      .addOperation(operation)
+      .build();
+    return await simulateTransaction(transaction);
+  }
+
+  async function invokeSorobanOperation<T>(operation: xdr.Operation) {
     try {
       const account = await stellarRpc.getAccount(walletAddress);
       const tx_builder = new TransactionBuilder(account, {
@@ -493,28 +576,19 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 2 * 60 * 1000 },
       }).addOperation(operation);
       const transaction = tx_builder.build();
-      const simResponse = await simulateOperation(operation);
+      const simResponse = await simulateTransaction(transaction);
       const assembled_tx = rpc.assembleTransaction(transaction, simResponse).build();
-      const extended_tx = addReflectorEntries(assembled_tx.toXDR());
+      const padded_tx = addSorobanInstructionLeeway(assembled_tx);
+      const extended_tx = addReflectorEntries(padded_tx.toXDR());
       console.log('Sending transaction to wallet: ', extended_tx);
       const signedTx = await sign(extended_tx);
       const tx = new Transaction(signedTx, network.passphrase);
-      return await sendTransaction(tx);
+      await sendTransaction(tx);
     } catch (e: any) {
       console.error('Unknown error submitting transaction: ', e);
       setFailureMessage(e?.message);
       setTxStatus(TxStatus.FAIL);
-      return false;
     }
-  }
-
-  async function invokeContract(operation: xdr.Operation): Promise<boolean> {
-    if (!connected) {
-      setFailureMessage('Connect a wallet before submitting a transaction.');
-      setTxStatus(TxStatus.FAIL);
-      return false;
-    }
-    return await invokeSorobanOperation(operation);
   }
 
   function clearLastTx() {
@@ -540,8 +614,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
       const pool =
-        poolMeta.version === Version.V2
-          ? new PoolContractV2(poolMeta.id)
+        poolMeta.version === Version.V3
+          ? new PoolContractV3(poolMeta.id)
           : new PoolContractV2(poolMeta.id);
       const operation = xdr.Operation.fromXDR(pool.submit(submitArgs), 'base64');
       if (sim) {
@@ -567,8 +641,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
       const pool =
-        poolMeta.version === Version.V2
-          ? new PoolContractV2(poolMeta.id)
+        poolMeta.version === Version.V3
+          ? new PoolContractV3(poolMeta.id)
           : new PoolContractV2(poolMeta.id);
       const operation = xdr.Operation.fromXDR(pool.claim(claimArgs), 'base64');
       if (sim) {
@@ -591,15 +665,21 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function backstopDeposit(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
-      const backstop =
-        poolMeta.version === Version.V2
-          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
-      const operation = xdr.Operation.fromXDR(backstop.deposit(args), 'base64');
+      const operationString =
+        poolMeta.version === Version.V3
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).deposit(
+              args as TierBackstopActionArgsV3
+            )
+          : usesV2Backstop(poolMeta)
+          ? new BackstopContractV2(backstopV2Id(poolMeta)).deposit(args as PoolBackstopActionArgs)
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).deposit(
+              args as PoolBackstopActionArgs
+            );
+      const operation = xdr.Operation.fromXDR(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -622,15 +702,22 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function backstopWithdraw(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
-      const backstop =
-        poolMeta.version === Version.V2
-          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
-      const operation = xdr.Operation.fromXDR(backstop.withdraw(args), 'base64');
+      const operationString =
+        poolMeta.version === Version.V3
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).withdraw({
+              ...(args as TierBackstopActionArgsV3),
+              to: args.from,
+            })
+          : usesV2Backstop(poolMeta)
+          ? new BackstopContractV2(backstopV2Id(poolMeta)).withdraw(args as PoolBackstopActionArgs)
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).withdraw(
+              args as PoolBackstopActionArgs
+            );
+      const operation = xdr.Operation.fromXDR(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -653,15 +740,23 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function backstopQueueWithdrawal(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
-      const backstop =
-        poolMeta.version === Version.V2
-          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
-      const operation = xdr.Operation.fromXDR(backstop.queueWithdrawal(args), 'base64');
+      const operationString =
+        poolMeta.version === Version.V3
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).queueWithdrawal(
+              args as TierBackstopActionArgsV3
+            )
+          : usesV2Backstop(poolMeta)
+          ? new BackstopContractV2(backstopV2Id(poolMeta)).queueWithdrawal(
+              args as PoolBackstopActionArgs
+            )
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).queueWithdrawal(
+              args as PoolBackstopActionArgs
+            );
+      const operation = xdr.Operation.fromXDR(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -683,15 +778,23 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function backstopDequeueWithdrawal(
     poolMeta: PoolMeta,
-    args: PoolBackstopActionArgs,
+    args: BackstopActionArgs,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
-      const backstop =
-        poolMeta.version === Version.V2
-          ? new BackstopContractV2(getBackstopId(poolMeta.deployment))
-          : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
-      const operation = xdr.Operation.fromXDR(backstop.dequeueWithdrawal(args), 'base64');
+      const operationString =
+        poolMeta.version === Version.V3
+          ? new BackstopContractV3(BACKSTOP_IDS[Version.V3]).dequeueWithdrawal(
+              args as TierBackstopActionArgsV3
+            )
+          : usesV2Backstop(poolMeta)
+          ? new BackstopContractV2(backstopV2Id(poolMeta)).dequeueWithdrawal(
+              args as PoolBackstopActionArgs
+            )
+          : new BackstopContractV1(BACKSTOP_IDS[Version.V1]).dequeueWithdrawal(
+              args as PoolBackstopActionArgs
+            );
+      const operation = xdr.Operation.fromXDR(operationString, 'base64');
       if (sim) {
         return await simulateOperation(operation);
       }
@@ -713,17 +816,21 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
    */
   async function backstopClaim(
     poolMeta: PoolMeta,
-    claimArgs: BackstopClaimV1Args | BackstopClaimV2Args,
+    claimArgs: BackstopClaimV1Args | BackstopClaimV2Args | BackstopClaimArgsV3,
     sim: boolean
   ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
     if (connected) {
       let operation = '';
-      if (poolMeta.version === Version.V2) {
-        operation = new BackstopContractV2(getBackstopId(poolMeta.deployment)).claim(
+      if (poolMeta.version === Version.V3) {
+        operation = new BackstopContractV3(BACKSTOP_IDS[Version.V3]).claim(
+          claimArgs as BackstopClaimArgsV3
+        );
+      } else if (usesV2Backstop(poolMeta)) {
+        operation = new BackstopContractV2(backstopV2Id(poolMeta)).claim(
           claimArgs as BackstopClaimV2Args
         );
       } else {
-        operation = new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '').claim(
+        operation = new BackstopContractV1(BACKSTOP_IDS[Version.V1]).claim(
           claimArgs as BackstopClaimV1Args
         );
       }
@@ -737,6 +844,98 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         cleanBackstopPoolCache(claimArgs.pool_addresses[0].toString());
       }
       cleanBackstopCache();
+      cleanWalletCache();
+    }
+  }
+
+  /** Claim the connected wallet's currently vested BLNT backfill allocation. */
+  async function backfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildClaimBackfillOperation(BLNT_BACKFILL_ID, user);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
+  /** Claim the connected wallet's currently vested contributor grant. */
+  async function contributorGrantClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildClaimGrantOperation(BLNT_BACKFILL_ID, user);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
+  /** Claim the connected wallet's currently vested lockup-remediation allocation. */
+  async function lockupBackfillClaim(
+    user: string,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_LOCKUP_BACKFILL_ID !== '') {
+      const operation = buildClaimLockupBackfillOperation(BLNT_LOCKUP_BACKFILL_ID, user);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
+  /** Claim the owner's vested contributor grant and atomically fund lockup remediation. */
+  async function contributorClaimAndFund(
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_LOCKUP_BACKFILL_ID !== '') {
+      const operation = buildClaimAndFundOperation(BLNT_LOCKUP_BACKFILL_ID);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanWalletCache();
+    }
+  }
+
+  /** Deposit the manager's available BLNT across both tiers and claim both tiers' emissions. */
+  async function backstopManagerDepositAndClaim(
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKSTOP_MANAGER_HELPER_ID !== '') {
+      const operation = buildBackstopManagerDepositAndClaimOperation(
+        BLNT_BACKSTOP_MANAGER_HELPER_ID
+      );
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
+      cleanBackstopCache();
+      cleanWalletCache();
+    }
+  }
+
+  /** Burn one legacy BLND for each pre-funded BLNT sent to the connected wallet. */
+  async function backfillSwapBlndForBlnt(
+    user: string,
+    blntAmount: bigint,
+    sim: boolean
+  ): Promise<rpc.Api.SimulateTransactionResponse | undefined> {
+    if (connected && BLNT_BACKFILL_ID !== '') {
+      const operation = buildSwapBlndForBlntOperation(BLNT_BACKFILL_ID, user, blntAmount);
+      if (sim) {
+        return await simulateOperation(operation);
+      }
+      await invokeSorobanOperation(operation);
       cleanWalletCache();
     }
   }
@@ -811,32 +1010,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  async function faucet(): Promise<undefined> {
-    if (connected && process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET) {
-      const url = `https://ewqw4hx7oa.execute-api.us-east-1.amazonaws.com/getAssets?userId=${walletAddress}`;
-      try {
-        setTxStatus(TxStatus.BUILDING);
-        const resp = await fetch(url, { method: 'GET' });
-        const txEnvelopeXDR = await resp.text();
-        let transaction = new Transaction(
-          xdr.TransactionEnvelope.fromXDR(txEnvelopeXDR, 'base64'),
-          network.passphrase
-        );
-
-        let signedTx = new Transaction(await sign(transaction.toXDR()), network.passphrase);
-        const result = await sendTransaction(signedTx);
-        if (result) {
-          cleanWalletCache();
-        }
-      } catch (e: any) {
-        console.error('Failed submitting transaction: ', e);
-        setFailureMessage(e?.message);
-        setTxStatus(TxStatus.FAIL);
-        return undefined;
-      }
-    }
-  }
-
   async function createTrustlines(assets: Asset[]) {
     try {
       if (connected) {
@@ -908,12 +1081,16 @@ export const WalletProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         backstopQueueWithdrawal,
         backstopDequeueWithdrawal,
         backstopClaim,
+        backfillClaim,
+        contributorGrantClaim,
+        lockupBackfillClaim,
+        contributorClaimAndFund,
+        backstopManagerDepositAndClaim,
+        backfillSwapBlndForBlnt,
         cometSingleSidedDeposit,
         cometJoin,
         cometExit,
-        faucet,
         createTrustlines,
-        invokeContract,
         getNetworkDetails,
         setTxInclusionFee,
       }}

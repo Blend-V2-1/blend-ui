@@ -1,7 +1,7 @@
-import { BackstopPoolEst, BackstopPoolUserEst } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
+import { useWallet } from '../../contexts/wallet';
 import {
   useBackstop,
   useBackstopPool,
@@ -10,6 +10,7 @@ import {
   usePoolMeta,
 } from '../../hooks/api';
 import { toBalance } from '../../utils/formatter';
+import { getBackstopPoolMetrics, getBackstopUserValue } from '../../utils/backstop';
 import { CustomButton } from '../common/CustomButton';
 import { Icon } from '../common/Icon';
 import { LinkBox } from '../common/LinkBox';
@@ -21,11 +22,12 @@ import { PoolStatusBox } from '../pool/PoolStatusBox';
 
 export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { viewType } = useSettings();
+  const { connected } = useWallet();
   const theme = useTheme();
 
   const { data: poolMeta } = usePoolMeta(poolId);
   const { data: pool } = usePool(poolMeta);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
 
@@ -33,13 +35,10 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
     return <Skeleton />;
   }
 
-  const backstopPoolEst = BackstopPoolEst.build(
-    backstop.backstopToken,
-    backstopPoolData.poolBalance
-  );
+  const backstopPoolEst = getBackstopPoolMetrics(backstop, backstopPoolData);
   const backstopUserPoolEst =
     backstopUserData !== undefined
-      ? BackstopPoolUserEst.build(backstop, backstopPoolData, backstopUserData)
+      ? getBackstopUserValue(backstop, backstopPoolData, backstopUserData)
       : undefined;
 
   const viewTypeRegular = viewType === ViewType.REGULAR;
@@ -120,7 +119,11 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
               title="Your Backstop Balance"
               titleColor="inherit"
               text={
-                backstopUserPoolEst ? `$${toBalance(backstopUserPoolEst.totalSpotValue)}` : '--'
+                backstopUserPoolEst !== undefined
+                  ? `$${toBalance(backstopUserPoolEst)}`
+                  : connected
+                  ? '--'
+                  : '$0'
               }
               textColor="inherit"
               type="large"

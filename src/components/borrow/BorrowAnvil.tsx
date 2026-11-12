@@ -6,27 +6,35 @@ import {
   Positions,
   PositionsEstimate,
   RequestType,
+  RESERVE_BORROW_ALLOWED,
   SubmitArgs,
 } from '@blend-capital/blend-sdk';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { Asset, rpc } from '@stellar/stellar-sdk';
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
-import { AppImage as Image } from '../common/AppImage';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import {
   useHorizonAccount,
   usePool,
   usePoolMeta,
   usePoolOracle,
+  usePoolPermissions,
   usePoolUser,
   useTokenMetadata,
 } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
+import { Version } from '../../utils/version';
 import { toBalance, toCompactAddress, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { scaleInputToBigInt } from '../../utils/scval';
-import { getErrorFromSim, SubmitError } from '../../utils/txSim';
+import {
+  getErrorFromSim,
+  getPoolPermissionError,
+  getReserveDeauthorizedError,
+  SubmitError,
+} from '../../utils/txSim';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -60,6 +68,11 @@ export const BorrowAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }
 
   const { data: poolMeta } = usePoolMeta(poolId);
   const { data: pool } = usePool(poolMeta);
+  const {
+    data: poolPermissions,
+    isError: isPermissionError,
+    isLoading: isPermissionLoading,
+  } = usePoolPermissions(poolMeta);
   const { data: poolOracle, isError: isOracleError } = usePoolOracle(pool);
   const { data: poolUser } = usePoolUser(pool);
   const { data: tokenMetadata } = useTokenMetadata(assetId);
@@ -130,6 +143,21 @@ export const BorrowAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }
 
   const { isSubmitDisabled, isMaxDisabled, reason, disabledType, extraContent, isError } =
     useMemo(() => {
+      const permissionError = getPoolPermissionError(
+        poolMeta?.version === Version.V3 && poolMeta.accessController !== undefined,
+        poolPermissions,
+        RESERVE_BORROW_ALLOWED,
+        isPermissionLoading,
+        isPermissionError,
+        'borrowing'
+      );
+      const authorizationError = getReserveDeauthorizedError(reserve);
+      if (permissionError) {
+        return permissionError;
+      }
+      if (authorizationError) {
+        return authorizationError;
+      }
       const hasTokenTrustline = !requiresTrustline(horizonAccount, tokenMetadata?.asset);
       if (!hasTokenTrustline) {
         let submitError: SubmitError = {
@@ -144,7 +172,18 @@ export const BorrowAnvil: React.FC<ReserveComponentProps> = ({ poolId, assetId }
       } else {
         return getErrorFromSim(toBorrow, decimals, loading, simResponse, undefined);
       }
-    }, [toBorrow, simResponse, poolUser, horizonAccount]);
+    }, [
+      toBorrow,
+      simResponse,
+      poolUser,
+      horizonAccount,
+      reserve?.isPoolDeauthorized,
+      poolMeta?.version,
+      poolMeta?.accessController,
+      poolPermissions,
+      isPermissionLoading,
+      isPermissionError,
+    ]);
 
   if (pool === undefined || reserve === undefined) {
     return <Skeleton />;

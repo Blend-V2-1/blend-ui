@@ -22,31 +22,60 @@ jobs:
     steps:
       - name: Checkout UI
         uses: actions/checkout@v4
+        with:
+          path: blnt-ui
+
+      - name: Checkout SDK
+        uses: actions/checkout@v4
+        with:
+          repository: BLNT-Protocol/blnt-sdk-js
+          path: blnt-sdk-js
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            blnt-sdk-js/package-lock.json
+            blnt-ui/package-lock.json
 
       - name: Set up npm
         run: npm install --global npm@11.13.0
 
-      - name: Configure GitHub Pages
-        id: pages
-        uses: actions/configure-pages@v5
+      - name: Install and build SDK
+        working-directory: blnt-sdk-js
+        run: |
+          npm ci
+          npm run build
 
       - name: Install and build mainnet UI
-        env:
-          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        working-directory: blnt-ui
         run: |
           npm ci
           npm run build:mainnet
 
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Package GitHub Pages artifact
+        run: |
+          tar \
+            --dereference --hard-dereference \
+            --directory blnt-ui/out \
+            --create --file "$RUNNER_TEMP/artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+
       - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          path: out
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     environment:

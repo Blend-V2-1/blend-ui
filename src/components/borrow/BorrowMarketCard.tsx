@@ -11,12 +11,12 @@ import {
   usePoolOracle,
   useTokenMetadata,
 } from '../../hooks/api';
-import { EMISSION_SYMBOL } from '../../hooks/types';
 import { estimateEmissionsApr } from '../../utils/math';
 import { CustomButton } from '../common/CustomButton';
 import { LinkBox } from '../common/LinkBox';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { RateDisplay } from '../common/RateDisplay';
+import { ReserveStatusIcons } from '../common/ReserveStatusIcons';
 import { SectionBase } from '../common/SectionBase';
 import { TokenHeader } from '../common/TokenHeader';
 
@@ -34,7 +34,7 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
   const { viewType } = useSettings();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
@@ -87,7 +87,11 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
             },
           }}
         >
-          <TokenHeader assetId={reserve.assetId} sx={{ width: tableWidth }} />
+          <TokenHeader
+            assetId={reserve.assetId}
+            status={<ReserveStatusIcons reserve={reserve} />}
+            sx={{ width: tableWidth }}
+          />
           <Box
             sx={{
               width: tableWidth,
@@ -110,7 +114,7 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
             <RateDisplay
               assetSymbol={symbol}
               assetRate={reserve.estBorrowApy}
-              emissionSymbol={EMISSION_SYMBOL}
+              emissionSymbol="BLND"
               emissionApr={emissionApr}
               rateType={'charged'}
               direction="vertical"

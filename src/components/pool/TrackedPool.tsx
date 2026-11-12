@@ -1,14 +1,14 @@
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings } from '../../contexts';
-import { PoolDeploymentLike } from '../../hooks/types';
 import { Row } from '../common/Row';
+import { Version } from '../../utils/version';
 import { VersionTag } from '../common/VersionTag';
 import { PoolIcon } from './PoolIcon';
 
 export interface TrackedPoolProps extends BoxProps {
   name: string;
   id: string;
-  version: PoolDeploymentLike;
+  version: Version;
 }
 
 export const TrackedPool: React.FC<TrackedPoolProps> = ({ name, id, version, sx, ...props }) => {

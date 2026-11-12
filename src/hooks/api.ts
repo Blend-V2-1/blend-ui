@@ -1,12 +1,23 @@
 import {
+  ALL_ACCESS_PERMISSIONS,
   Backstop,
+  BackstopAssetV3,
+  BackstopConfig,
+  BackstopEmissionsV3,
   BackstopPool,
+  BackstopPoolEmissionsV3,
   BackstopPoolUser,
+  BackstopPoolUserV3,
+  BackstopPoolV3,
   BackstopPoolV1,
   BackstopPoolV2,
+  BackstopToken,
+  BackstopTierV3,
+  BackstopV3,
   EmitterContract,
   ErrorTypes,
   getOracleDecimals,
+  loadAccessPermissions,
   Network,
   Pool,
   poolEventV1FromEventResponse,
@@ -18,10 +29,12 @@ import {
   PoolV1Event,
   PoolV2,
   PoolV2Event,
+  PoolV3,
+  PoolV3Event,
   Positions,
   TokenMetadata,
   UserBalance,
-  Version,
+  Version as SdkVersion,
 } from '@blend-capital/blend-sdk';
 import {
   Account,
@@ -47,25 +60,44 @@ import { useWallet } from '../contexts/wallet';
 import { getContractTokenIcon } from '../external/icon-map';
 import { getTokenMetadataFromTOML, TomlMetadata } from '../external/stellar-toml';
 import { getTokenBalance } from '../external/token';
-import { SIMULATION_SOURCE_ACCOUNT } from '../utils/simulation';
+import {
+  BackfillEmissionsState,
+  BackfillSwapState,
+  BLNT_BACKFILL_ID,
+  BLNT_LOCKUP_BACKFILL_ID,
+  ContributorGrantState,
+  LockupBackfillClaimState,
+  loadBackfillEmissionsState,
+  loadBackfillSwapState,
+  loadContributorGrantState,
+  loadLockupBackfillClaimState,
+  loadLockupBackfillOwner,
+} from '../utils/blnt_backfill';
+import {
+  BLNT_BACKSTOP_MANAGER_HELPER_ID,
+  BlntBackstopManagerHelperConfig,
+  loadBlntBackstopManagerHelperConfig,
+} from '../utils/blnt_backstop_manager_helper';
 import { getOraclePrices } from '../utils/stellar_rpc';
 import { ReserveTokenMetadata } from '../utils/token';
 import {
-  getBackstopId,
-  NOT_BLEND_POOL_ERROR_MESSAGE,
-  PoolDeployment,
-  PoolDeploymentLike,
-  PoolMeta,
-} from './types';
+  BACKSTOP_IDS,
+  isV2Contracts,
+  normalizeVersion,
+  Version,
+  VersionLike,
+} from '../utils/version';
+import { NOT_BLEND_POOL_ERROR_MESSAGE, PoolMeta } from './types';
 
 const DEFAULT_STALE_TIME = 30 * 1000;
 const USER_STALE_TIME = 60 * 1000;
-const BACKSTOP_ID = process.env.NEXT_PUBLIC_BACKSTOP || '';
-const BACKSTOP_ID_V2 = process.env.NEXT_PUBLIC_BACKSTOP_V2 || '';
-const BACKSTOP_ID_V21 = process.env.NEXT_PUBLIC_BACKSTOP_V21 || '';
+const V3_POOL_WASM_HASH = process.env.NEXT_PUBLIC_V3_POOL_WASM_HASH || '';
+const BLND_TOKEN_ID = process.env.NEXT_PUBLIC_BLND_TOKEN || '';
+const USDC_TOKEN_ID = process.env.NEXT_PUBLIC_USDC_TOKEN || '';
+const BLND_USDC_COMET_ID = process.env.NEXT_PUBLIC_BLND_USDC_COMET || '';
+const ORACLE_PRICE_FETCHER = process.env.NEXT_PUBLIC_ORACLE_PRICE_FETCHER?.trim();
+const POOL_WASM_V1 = 'baf978f10efdbcd85747868bef8832845ea6809f7643b67a4ac0cd669327fc2c';
 const POOL_WASM_V2 = 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
-const V21_POOL_WASM_HASH = process.env.NEXT_PUBLIC_V21_POOL_WASM_HASH || POOL_WASM_V2;
-const ORACLE_PRICE_FETCHER = process.env.NEXT_PUBLIC_ORACLE_PRICE_FETCHER?.trim() || undefined;
 
 //********** Query Client Data **********//
 
@@ -82,6 +114,11 @@ export function useQueryClientCacheCleaner(): {
       predicate: (query) =>
         query.queryKey[0] === 'balance' ||
         query.queryKey[0] === 'account' ||
+        query.queryKey[0] === 'backfillEmissions' ||
+        query.queryKey[0] === 'contributorGrant' ||
+        query.queryKey[0] === 'lockupBackfillClaim' ||
+        query.queryKey[0] === 'backstopManagerHelperState' ||
+        query.queryKey[0] === 'backfillSwap' ||
         query.queryKey[0] === 'sim',
     });
 
@@ -96,7 +133,8 @@ export function useQueryClientCacheCleaner(): {
 
   const cleanBackstopCache = () => {
     queryClient.invalidateQueries({
-      predicate: (query) => query.queryKey[0] === 'backstop',
+      predicate: (query) =>
+        query.queryKey[0] === 'backstop' || query.queryKey[0] === 'backstopTierTokenV3',
     });
   };
 
@@ -110,11 +148,18 @@ export function useQueryClientCacheCleaner(): {
 
   const cleanBackstopPoolCache = (poolId: string) => {
     cleanBackstopCache();
-    queryClient.invalidateQueries({
-      predicate: (query) =>
-        (query.queryKey[0] === 'backstopPool' || query.queryKey[0] === 'backstopPoolUser') &&
-        query.queryKey[1] === poolId,
-    });
+    const invalidatePoolBackstop = () =>
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          (query.queryKey[0] === 'backstopPool' || query.queryKey[0] === 'backstopPoolUser') &&
+          query.queryKey[1] === poolId,
+      });
+    void invalidatePoolBackstop();
+
+    // Public RPC nodes can briefly serve the ledger preceding a successful
+    // submission. Refresh once more so queue/dequeue state does not remain
+    // hidden behind the user query's stale-time window.
+    setTimeout(() => void invalidatePoolBackstop(), 1000);
   };
 
   return { cleanWalletCache, cleanBackstopCache, cleanPoolCache, cleanBackstopPoolCache };
@@ -139,6 +184,168 @@ export function useCurrentBlockNumber(): UseQueryResult<number, Error> {
   });
 }
 
+/**
+ * Fetch the connected wallet's immutable backfill allocation and live vesting state.
+ */
+export function useBackfillEmissions(
+  enabled: boolean = true
+): UseQueryResult<BackfillEmissionsState, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['backfillEmissions', BLNT_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadBackfillEmissionsState(network, BLNT_BACKFILL_ID, walletAddress),
+  });
+}
+
+/** Fetch the connected wallet's immutable contributor grant and live vesting state. */
+export function useContributorGrant(
+  enabled: boolean = true
+): UseQueryResult<ContributorGrantState | null, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['contributorGrant', BLNT_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadContributorGrantState(network, BLNT_BACKFILL_ID, walletAddress),
+  });
+}
+
+/** Fetch the immutable owner authorized to claim and fund the lockup backfill contract. */
+export function useLockupBackfillOwner(enabled: boolean = true): UseQueryResult<string, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: Infinity,
+    queryKey: ['lockupBackfillOwner', BLNT_LOCKUP_BACKFILL_ID],
+    enabled: enabled && BLNT_LOCKUP_BACKFILL_ID !== '',
+    queryFn: () => loadLockupBackfillOwner(network, BLNT_LOCKUP_BACKFILL_ID),
+  });
+}
+
+/** Fetch the connected wallet's lockup-remediation allocation and live claim state. */
+export function useLockupBackfillClaim(
+  enabled: boolean = true
+): UseQueryResult<LockupBackfillClaimState | null, Error> {
+  const { network } = useSettings();
+  const { connected, walletAddress } = useWallet();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['lockupBackfillClaim', BLNT_LOCKUP_BACKFILL_ID, walletAddress],
+    enabled: enabled && connected && walletAddress !== '' && BLNT_LOCKUP_BACKFILL_ID !== '',
+    queryFn: () =>
+      loadLockupBackfillClaimState(network, BLNT_LOCKUP_BACKFILL_ID, walletAddress),
+  });
+}
+
+export interface BlntBackstopManagerHelperState {
+  blntBalance: bigint;
+  firstLpTokens: bigint;
+  firstValue: bigint;
+  secondLpTokens: bigint;
+  secondValue: bigint;
+}
+
+/** Fetch the immutable helper bindings used to gate its owner-only UI. */
+export function useBlntBackstopManagerHelperConfig(
+  enabled: boolean = true
+): UseQueryResult<BlntBackstopManagerHelperConfig, Error> {
+  const { network } = useSettings();
+  const { connected } = useWallet();
+
+  return useQuery({
+    staleTime: Infinity,
+    queryKey: ['backstopManagerHelperConfig', BLNT_BACKSTOP_MANAGER_HELPER_ID],
+    enabled: enabled && connected && BLNT_BACKSTOP_MANAGER_HELPER_ID !== '',
+    queryFn: () => loadBlntBackstopManagerHelperConfig(network, BLNT_BACKSTOP_MANAGER_HELPER_ID),
+  });
+}
+
+/** Fetch the manager's loose BLNT and its two YieldBlent backstop positions. */
+export function useBlntBackstopManagerHelperState(
+  config: BlntBackstopManagerHelperConfig | undefined,
+  enabled: boolean = true
+): UseQueryResult<BlntBackstopManagerHelperState, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: [
+      'backstopManagerHelperState',
+      BLNT_BACKSTOP_MANAGER_HELPER_ID,
+      config?.manager,
+      config?.pool,
+    ],
+    enabled: enabled && config !== undefined,
+    queryFn: async () => {
+      if (config === undefined) {
+        throw new Error('BLNT backstop manager helper is not configured');
+      }
+      const stellarRpc = new rpc.Server(network.rpc, network.opts);
+      const [blntBalance, pool, user] = await Promise.all([
+        getTokenBalance(
+          stellarRpc,
+          network.passphrase,
+          config.blnt,
+          Address.fromString(config.manager)
+        ),
+        BackstopPoolV3.load(network, config.backstop, config.pool),
+        BackstopPoolUserV3.load(network, config.backstop, config.pool, config.manager),
+      ]);
+
+      const position = (tier: BackstopTierV3) => {
+        const tierPool = pool.tier(tier);
+        const balance = user.balance(tier);
+        const queuedShares = balance.q4w.reduce(
+          (total, queued) => total + queued.amount,
+          BigInt(0)
+        );
+        const tokens = tierPool.sharesToTokens(balance.shares + queuedShares);
+        const value =
+          tierPool.data.tokens > BigInt(0)
+            ? (tokens * tierPool.data.value) / tierPool.data.tokens
+            : BigInt(0);
+        return { tokens, value };
+      };
+      const first = position(BackstopTierV3.FirstLoss);
+      const second = position(BackstopTierV3.SecondLoss);
+
+      return {
+        blntBalance,
+        firstLpTokens: first.tokens,
+        firstValue: first.value,
+        secondLpTokens: second.tokens,
+        secondValue: second.value,
+      };
+    },
+  });
+}
+
+/** Fetch the immutable token bindings and live BLND-to-BLNT conversion state. */
+export function useBackfillSwapState(
+  enabled: boolean = true
+): UseQueryResult<BackfillSwapState, Error> {
+  const { network } = useSettings();
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    refetchInterval: DEFAULT_STALE_TIME,
+    queryKey: ['backfillSwap', BLNT_BACKFILL_ID],
+    enabled: enabled && BLNT_BACKFILL_ID !== '',
+    queryFn: () => loadBackfillSwapState(network, BLNT_BACKFILL_ID),
+  });
+}
+
 //********** Pool Data **********//
 
 export function usePoolMeta(
@@ -153,44 +360,48 @@ export function usePoolMeta(
     enabled: enabled && poolId !== '',
     queryFn: async () => {
       try {
-        let metadata = await PoolMetadata.load(network, poolId);
-        if (
-          metadata.wasmHash === 'baf978f10efdbcd85747868bef8832845ea6809f7643b67a4ac0cd669327fc2c'
-        ) {
+        let metadata;
+        try {
+          metadata = await PoolMetadata.load(network, poolId);
+        } catch (error: any) {
+          if (!error?.message?.includes(ErrorTypes.LedgerEntryParseError)) {
+            throw error;
+          }
+          metadata = await PoolMetadata.loadV3(network, poolId);
+        }
+        if (metadata.wasmHash === POOL_WASM_V1) {
           // v1 pool - validate backstop is correct
-          if (metadata.backstop === BACKSTOP_ID) {
-            return {
-              id: poolId,
-              version: Version.V1,
-              deployment: PoolDeployment.V1,
-              ...metadata,
-            } as PoolMeta;
+          if (metadata.backstop === BACKSTOP_IDS[Version.V1]) {
+            return { id: poolId, version: Version.V1, ...metadata } as PoolMeta;
           }
         } else if (
           metadata.wasmHash === POOL_WASM_V2 ||
-          metadata.wasmHash === V21_POOL_WASM_HASH ||
           // testnet v2 pool hash
           (network.passphrase === Networks.TESTNET &&
             metadata.wasmHash ===
               '6a7c67449f6bad0d5f641cfbdf03f430ec718faa85107ecb0b97df93410d1c43')
         ) {
           // v2 pool - validate backstop is correct
-          if (metadata.backstop === BACKSTOP_ID_V2) {
-            return {
-              id: poolId,
-              version: Version.V2,
-              deployment: PoolDeployment.V2,
-              ...metadata,
-            } as PoolMeta;
+          if (metadata.backstop === BACKSTOP_IDS[Version.V2]) {
+            return { id: poolId, version: Version.V2, ...metadata } as PoolMeta;
           }
-          if (metadata.backstop === BACKSTOP_ID_V21) {
-            return {
-              id: poolId,
-              version: Version.V2,
-              deployment: PoolDeployment.V21,
-              ...metadata,
-            } as PoolMeta;
+          if (metadata.backstop === BACKSTOP_IDS[Version.V2_1]) {
+            return { id: poolId, version: Version.V2_1, ...metadata } as PoolMeta;
           }
+          // Blend's current testnet lane uses v2 pool bytecode. Treat it as
+          // the UI's v1/team lane so it remains distinct from our v2 stack.
+          if (
+            network.passphrase === Networks.TESTNET &&
+            metadata.backstop === BACKSTOP_IDS[Version.V1]
+          ) {
+            return { id: poolId, version: Version.V1, ...metadata } as PoolMeta;
+          }
+        } else if (
+          V3_POOL_WASM_HASH !== '' &&
+          metadata.wasmHash === V3_POOL_WASM_HASH &&
+          metadata.backstop === BACKSTOP_IDS[Version.V3]
+        ) {
+          return { id: poolId, version: Version.V3, ...metadata } as PoolMeta;
         }
         throw new Error(NOT_BLEND_POOL_ERROR_MESSAGE);
       } catch (e: any) {
@@ -230,8 +441,14 @@ export function usePool(
     queryFn: async () => {
       if (poolMeta !== undefined) {
         try {
-          if (poolMeta.version === Version.V2) {
+          if (poolMeta.version === Version.V3) {
+            return await PoolV3.loadWithMetadata(network, poolMeta.id, poolMeta);
+          } else if (isV2Contracts(poolMeta.version)) {
             return await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
+          } else if (poolMeta.wasmHash === POOL_WASM_V2) {
+            const pool = await PoolV2.loadWithMetadata(network, poolMeta.id, poolMeta);
+            pool.version = SdkVersion.V1;
+            return pool;
           } else {
             return await PoolV1.loadWithMetadata(network, poolMeta.id, poolMeta);
           }
@@ -241,6 +458,34 @@ export function usePool(
         }
       }
     },
+  });
+}
+
+/**
+ * Loads the connected wallet's immutable pool-local access flags. Open pools
+ * return all standardized bits without invoking an external controller.
+ */
+export function usePoolPermissions(
+  poolMeta: PoolMeta | undefined,
+  enabled: boolean = true
+): UseQueryResult<number, Error> {
+  const { network } = useSettings();
+  const { walletAddress, connected } = useWallet();
+  const controller = poolMeta?.version === Version.V3 ? poolMeta.accessController : undefined;
+
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['poolPermissions', poolMeta?.id, controller, walletAddress],
+    enabled: enabled && poolMeta !== undefined && connected && walletAddress !== '',
+    placeholderData: controller === undefined ? ALL_ACCESS_PERMISSIONS : 0,
+    queryFn: async () => {
+      if (poolMeta === undefined || controller === undefined) {
+        return ALL_ACCESS_PERMISSIONS;
+      }
+      const result = await loadAccessPermissions(network, controller, poolMeta.id, walletAddress);
+      return result.permissions;
+    },
+    retry: 1,
   });
 }
 
@@ -261,7 +506,7 @@ export function usePoolOracle(
     enabled: pool !== undefined && enabled,
     queryFn: async () => {
       if (pool !== undefined) {
-        if (ORACLE_PRICE_FETCHER !== undefined) {
+        if (ORACLE_PRICE_FETCHER) {
           try {
             const { decimals, latestLedger } = await getOracleDecimals(
               network,
@@ -328,43 +573,64 @@ export function usePoolUser(
  * @returns Query result with the backstop data.
  */
 export function useBackstop(
-  deployment: PoolDeploymentLike | undefined,
+  version: VersionLike | undefined,
   enabled: boolean = true
 ): UseQueryResult<Backstop, Error> {
   const { network } = useSettings();
-  const backstopId = getBackstopId(deployment);
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
-    queryKey: ['backstop', deployment, backstopId],
-    enabled: enabled && deployment !== undefined && backstopId !== '',
+    queryKey: ['backstop', version],
+    enabled: enabled && version !== undefined,
     queryFn: async () => {
-      return await Backstop.load(network, backstopId);
+      const deployment = normalizeVersion(version);
+      if (deployment === Version.V3) {
+        const v3 = await BackstopV3.load(network, BACKSTOP_IDS[Version.V3]);
+        const blndUsdcToken = await BackstopToken.load(
+          network,
+          BLND_USDC_COMET_ID,
+          BLND_TOKEN_ID,
+          USDC_TOKEN_ID
+        );
+        const config = new BackstopConfig(
+          '',
+          BLND_TOKEN_ID,
+          USDC_TOKEN_ID,
+          BLND_USDC_COMET_ID,
+          '',
+          v3.rewardZone,
+          v3.latestLedger
+        );
+        return new Backstop(
+          BACKSTOP_IDS[Version.V3],
+          config,
+          blndUsdcToken,
+          v3.latestLedger,
+          Math.floor(Date.now() / 1000)
+        );
+      }
+      return await Backstop.load(network, BACKSTOP_IDS[deployment]);
     },
   });
 }
 
-/**
- * Fetches the backstop currently recognized by a Blend emitter.
- * @param backstop - The candidate backstop whose emitter should be queried
- * @param enabled - Whether the query is enabled (optional - defaults to true)
- * @returns Query result containing the emitter's current backstop address
- */
+/** Fetch the backstop currently recognized by a legacy Blend emitter. */
 export function useEmitterBackstop(
   backstop: Backstop | undefined,
   enabled: boolean = true
 ): UseQueryResult<string, Error> {
   const { network } = useSettings();
+  const { walletAddress, connected } = useWallet();
   const emitterId = backstop?.config.emitter ?? '';
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
     queryKey: ['emitterBackstop', emitterId],
-    enabled: enabled && emitterId !== '',
+    enabled: enabled && connected && walletAddress !== '' && emitterId !== '',
     queryFn: async () => {
       const operation = xdr.Operation.fromXDR(
         new EmitterContract(emitterId).getBackstop(),
         'base64'
       );
-      const source = new Account(SIMULATION_SOURCE_ACCOUNT, '0');
+      const source = new Account(walletAddress, '0');
       const transaction = new TransactionBuilder(source, {
         fee: BASE_FEE,
         networkPassphrase: network.passphrase,
@@ -384,6 +650,90 @@ export function useEmitterBackstop(
   });
 }
 
+/** Fetch the tier-aware v3 backstop state. */
+export function useBackstopV3(enabled: boolean = true): UseQueryResult<BackstopV3, Error> {
+  const { network } = useSettings();
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['backstopV3'],
+    enabled: enabled && BACKSTOP_IDS[Version.V3] !== '',
+    queryFn: async () => BackstopV3.load(network, BACKSTOP_IDS[Version.V3]),
+  });
+}
+
+/** Fetch the Comet state for one of v3's LP-token backstop tiers. */
+export function useBackstopTierTokenV3(
+  tier: BackstopTierV3,
+  poolMeta: PoolMeta | undefined,
+  enabled: boolean = true
+): UseQueryResult<BackstopToken, Error> {
+  const { network } = useSettings();
+  const { data: loadedPool } = useBackstopPool(poolMeta, enabled);
+  const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const tierData = pool?.tiers[tier]?.data;
+  const lpTokenId = tierData?.token;
+  const isBlntXlm = tierData?.asset === BackstopAssetV3.BlntXlm;
+  const isBlntUsdc = tierData?.asset === BackstopAssetV3.BlntUsdc;
+  const pairTokenId = isBlntXlm ? Asset.native().contractId(network.passphrase) : USDC_TOKEN_ID;
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['backstopTierTokenV3', tier, lpTokenId],
+    enabled:
+      enabled &&
+      tierData?.blnt_emission_eligible === true &&
+      (isBlntXlm || isBlntUsdc) &&
+      lpTokenId !== undefined &&
+      BLND_TOKEN_ID !== '' &&
+      pairTokenId !== '',
+    queryFn: async () => {
+      if (lpTokenId === undefined || (!isBlntXlm && !isBlntUsdc)) {
+        throw new Error('The selected v3 tier is not a Comet LP token.');
+      }
+      return BackstopToken.load(network, lpTokenId, BLND_TOKEN_ID, pairTokenId);
+    },
+  });
+}
+
+export interface ManagedBackstopToken {
+  backstopToken: BackstopToken | undefined;
+  blndTokenId: string;
+  cometPoolId: string;
+  lpSymbol: string;
+  pairSymbol: 'USDC' | 'XLM';
+  pairTokenId: string;
+}
+
+/** Resolve the token bindings used by the shared V2/V3 Comet management UI. */
+export function useManagedBackstopToken(
+  tier?: BackstopTierV3,
+  version: VersionLike = Version.V1,
+  poolMeta?: PoolMeta
+): ManagedBackstopToken {
+  const { network } = useSettings();
+  const isV3 = tier !== undefined;
+  const effectiveTier = tier ?? BackstopTierV3.SecondLoss;
+  const { data: legacyBackstop } = useBackstop(version, !isV3);
+  const { data: loadedPool } = useBackstopPool(poolMeta, isV3);
+  const v3Pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const v3TierData = v3Pool?.tiers[effectiveTier]?.data;
+  const v3TierToken = v3TierData?.token;
+  const { data: v3BackstopToken } = useBackstopTierTokenV3(effectiveTier, poolMeta, isV3);
+  const pairIsXlm = v3TierData?.asset === BackstopAssetV3.BlntXlm;
+
+  return {
+    backstopToken: isV3 ? v3BackstopToken : legacyBackstop?.backstopToken,
+    blndTokenId: isV3 ? BLND_TOKEN_ID : legacyBackstop?.config.blndTkn ?? '',
+    cometPoolId: isV3 ? v3TierToken ?? '' : legacyBackstop?.config.backstopTkn ?? '',
+    lpSymbol: isV3 ? (pairIsXlm ? 'BLNT-XLM LP' : 'BLNT-USDC LP') : 'BLND-USDC LP',
+    pairSymbol: pairIsXlm ? 'XLM' : 'USDC',
+    pairTokenId: pairIsXlm
+      ? Asset.native().contractId(network.passphrase)
+      : isV3
+      ? USDC_TOKEN_ID
+      : legacyBackstop?.config.usdcTkn ?? '',
+  };
+}
+
 /**
  * Fetch the backstop pool data for the given pool ID.
  * @param poolMeta - The pool metadata
@@ -393,7 +743,7 @@ export function useEmitterBackstop(
 export function useBackstopPool(
   poolMeta: PoolMeta | undefined,
   enabled: boolean = true
-): UseQueryResult<BackstopPool, Error> {
+): UseQueryResult<BackstopPool | BackstopPoolV3, Error> {
   const { network } = useSettings();
   return useQuery({
     staleTime: DEFAULT_STALE_TIME,
@@ -401,11 +751,41 @@ export function useBackstopPool(
     enabled: enabled && poolMeta !== undefined,
     queryFn: async () => {
       if (poolMeta !== undefined) {
-        return poolMeta.version === Version.V2
-          ? await BackstopPoolV2.load(network, getBackstopId(poolMeta.deployment), poolMeta.id)
-          : await BackstopPoolV1.load(network, BACKSTOP_ID, poolMeta.id);
+        if (poolMeta.version === Version.V3) {
+          return await BackstopPoolV3.load(network, BACKSTOP_IDS[Version.V3], poolMeta.id);
+        }
+        if (poolMeta.version === Version.V1 && poolMeta.wasmHash === POOL_WASM_V2) {
+          return await BackstopPoolV2.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
+        }
+        return isV2Contracts(poolMeta.version)
+          ? await BackstopPoolV2.load(network, BACKSTOP_IDS[poolMeta.version], poolMeta.id)
+          : await BackstopPoolV1.load(network, BACKSTOP_IDS[Version.V1], poolMeta.id);
       }
     },
+  });
+}
+
+/** Fetch the current per-tier emission streams for one v3 backstop pool. */
+export function useBackstopPoolEmissionsV3(
+  poolMeta: PoolMeta | undefined,
+  enabled: boolean = true
+): UseQueryResult<BackstopPoolEmissionsV3, Error> {
+  const { network } = useSettings();
+  const { data: loadedPool } = useBackstopPool(poolMeta, enabled);
+  const pool = loadedPool instanceof BackstopPoolV3 ? loadedPool : undefined;
+  const tiers =
+    pool?.configuredTiers.filter((tier) => pool.tier(tier).data.blnt_emission_eligible) ?? [];
+  return useQuery({
+    staleTime: DEFAULT_STALE_TIME,
+    queryKey: ['backstopPoolEmissionsV3', poolMeta?.id, ...tiers],
+    enabled:
+      enabled &&
+      poolMeta?.version === Version.V3 &&
+      pool !== undefined &&
+      tiers.length > 0 &&
+      BACKSTOP_IDS[Version.V3] !== '',
+    queryFn: async () =>
+      BackstopEmissionsV3.loadPoolEmissions(network, BACKSTOP_IDS[Version.V3], poolMeta!.id, tiers),
   });
 }
 
@@ -418,24 +798,35 @@ export function useBackstopPool(
 export function useBackstopPoolUser(
   poolMeta: PoolMeta | undefined,
   enabled: boolean = true
-): UseQueryResult<BackstopPoolUser, Error> {
+): UseQueryResult<BackstopPoolUser | BackstopPoolUserV3, Error> {
   const { network } = useSettings();
   const { walletAddress, connected } = useWallet();
   return useQuery({
     staleTime: USER_STALE_TIME,
     queryKey: ['backstopPoolUser', poolMeta?.id, walletAddress],
     enabled: enabled && poolMeta !== undefined && connected,
-    placeholderData: new BackstopPoolUser(
-      walletAddress,
-      poolMeta?.id ?? '',
-      new UserBalance(BigInt(0), [], BigInt(0), BigInt(0)),
-      undefined
-    ),
+    placeholderData:
+      poolMeta?.version === Version.V3
+        ? undefined
+        : new BackstopPoolUser(
+            walletAddress,
+            poolMeta?.id ?? '',
+            new UserBalance(BigInt(0), [], BigInt(0), BigInt(0)),
+            undefined
+          ),
     queryFn: async () => {
       if (walletAddress !== '' && poolMeta !== undefined) {
+        if (poolMeta.version === Version.V3) {
+          return await BackstopPoolUserV3.load(
+            network,
+            BACKSTOP_IDS[Version.V3],
+            poolMeta.id,
+            walletAddress
+          );
+        }
         return await BackstopPoolUser.load(
           network,
-          poolMeta.version === Version.V2 ? getBackstopId(poolMeta.deployment) : BACKSTOP_ID,
+          BACKSTOP_IDS[poolMeta.version],
           poolMeta.id,
           walletAddress
         );
@@ -538,7 +929,10 @@ export function useTokenBalance(
 export function useAuctionEventsLongQuery(
   poolMeta: PoolMeta | undefined,
   enabled: boolean = true
-): UseQueryResult<{ events: PoolV1Event[] | PoolV2Event[]; latestLedger: number }, Error> {
+): UseQueryResult<
+  { events: PoolV1Event[] | PoolV2Event[] | PoolV3Event[]; latestLedger: number },
+  Error
+> {
   const { network } = useSettings();
   return useQuery({
     staleTime: 10 * 60 * 1000,
@@ -578,7 +972,10 @@ export function useAuctionEventsShortQuery(
   poolMeta: PoolMeta | undefined,
   lastLedgerFetched: number,
   enabled: boolean = true
-): UseQueryResult<{ events: PoolV1Event[] | PoolV2Event[]; latestLedger: number }, Error> {
+): UseQueryResult<
+  { events: PoolV1Event[] | PoolV2Event[] | PoolV3Event[]; latestLedger: number },
+  Error
+> {
   const { network } = useSettings();
   // TODO: Use cursor instead of lastLedger when possible once RPC cursor usage is fixed.
   return useQuery({
@@ -761,7 +1158,8 @@ async function getAuctionEventsQuery(
 ): Promise<{ events: PoolV1Event[] | PoolV2Event[]; latestLedger: number }> {
   // TODO: add pagination once cursor usage is fixed
   const stellarRpc = new rpc.Server(network.rpc, network.opts);
-  const topics = poolMeta.version === Version.V1 ? AUCTION_EVENT_FILTERS : AUCTION_EVENT_FILTERS_V2;
+  const useV1Events = poolMeta.version === Version.V1 && poolMeta.wasmHash !== POOL_WASM_V2;
+  const topics = useV1Events ? AUCTION_EVENT_FILTERS : AUCTION_EVENT_FILTERS_V2;
   const resp = await stellarRpc._getEvents({
     startLedger,
     filters: [
@@ -774,7 +1172,7 @@ async function getAuctionEventsQuery(
     limit: 1000,
   });
 
-  if (poolMeta.version === Version.V1) {
+  if (useV1Events) {
     let events: PoolV1Event[] = [];
     for (const respEvent of resp.events) {
       let poolEvent = poolEventV1FromEventResponse(respEvent);

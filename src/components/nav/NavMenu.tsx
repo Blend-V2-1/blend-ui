@@ -1,4 +1,3 @@
-import { Version } from '@blend-capital/blend-sdk';
 import MenuIcon from '@mui/icons-material/Menu';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Alert, IconButton, Menu, MenuItem, Snackbar, Typography, useTheme } from '@mui/material';
@@ -6,6 +5,7 @@ import Link from 'next/link';
 import React from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
+import { Version } from '../../utils/version';
 import { NavItem } from './NavItem';
 
 export const NavMenu = () => {
@@ -56,35 +56,22 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          <Link href="/backfill">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              BLNT Backfill
+            </MenuItem>
+          </Link>
           <Link href={{ pathname: '/auction', query: { poolId: safePoolId } }}>
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Auctions
             </MenuItem>
           </Link>
-          <a href="https://core.allbridge.io/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Bridge USDC</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
           <Link href="/settings">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Settings
             </MenuItem>
           </Link>
-          <a href="https://docs.blend.capital/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Docs</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
-          <a href="https://github.com/blend-capital" target="_blank" rel="noreferrer">
+          <a href="https://github.com/blnt-protocol" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}
               sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
@@ -93,6 +80,17 @@ export const NavMenu = () => {
               <OpenInNewIcon fontSize="inherit" />
             </MenuItem>
           </a>
+          <MenuItem
+            component="a"
+            href="https://discord.gg/Baza8FXzzT"
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleClose}
+            sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
+          >
+            <Typography>Discord</Typography>
+            <OpenInNewIcon fontSize="inherit" />
+          </MenuItem>
           <Link href="/termsofservice">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Terms of Service
@@ -114,6 +112,11 @@ export const NavMenu = () => {
             backgroundColor: theme.palette.menu.main,
           }}
         >
+          <Link href="/backfill">
+            <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
+              BLNT Backfill
+            </MenuItem>
+          </Link>
           <NavItem
             onClick={handleClose}
             to={{ pathname: '/' }}
@@ -138,30 +141,12 @@ export const NavMenu = () => {
             title="Auctions"
             sx={{ width: '90%', justifyContent: 'left', marginBottom: '6px' }}
           />
-          <a href="https://core.allbridge.io/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Bridge USDC</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
           <Link href="/settings">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Settings
             </MenuItem>
           </Link>
-          <a href="https://docs.blend.capital/" target="_blank" rel="noreferrer">
-            <MenuItem
-              onClick={handleClose}
-              sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
-            >
-              <Typography>Docs</Typography>
-              <OpenInNewIcon fontSize="inherit" />
-            </MenuItem>
-          </a>
-          <a href="https://github.com/blend-capital" target="_blank" rel="noreferrer">
+          <a href="https://github.com/blnt-protocol" target="_blank" rel="noreferrer">
             <MenuItem
               onClick={handleClose}
               sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
@@ -170,6 +155,17 @@ export const NavMenu = () => {
               <OpenInNewIcon fontSize="inherit" />
             </MenuItem>
           </a>
+          <MenuItem
+            component="a"
+            href="https://discord.gg/Baza8FXzzT"
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleClose}
+            sx={{ color: '#FFFFFF', justifyContent: 'space-between' }}
+          >
+            <Typography>Discord</Typography>
+            <OpenInNewIcon fontSize="inherit" />
+          </MenuItem>
           <Link href="/termsofservice">
             <MenuItem onClick={handleClose} sx={{ color: '#FFFFFF' }}>
               Terms of Service

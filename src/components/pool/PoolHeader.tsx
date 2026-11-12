@@ -1,12 +1,12 @@
 import { Box, BoxProps, Typography } from '@mui/material';
-import { PoolDeploymentLike } from '../../hooks/types';
+import { Version } from '../../utils/version';
 import { VersionTag } from '../common/VersionTag';
 import { PoolIcon } from './PoolIcon';
 
 export interface PoolHeaderProps extends BoxProps {
   name: string;
   poolAddress?: string;
-  version: PoolDeploymentLike;
+  version: Version;
 }
 
 export const PoolHeader: React.FC<PoolHeaderProps> = ({

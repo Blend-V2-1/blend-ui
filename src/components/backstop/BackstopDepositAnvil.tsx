@@ -1,11 +1,14 @@
 import {
   BackstopContractV1,
+  BackstopPoolUserV3,
   BackstopPoolUserEst,
+  BackstopPoolV3,
   parseResult,
   PoolBackstopActionArgs,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Horizon, rpc } from '@stellar/stellar-sdk';
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
@@ -16,12 +19,10 @@ import {
   usePoolMeta,
   useTokenBalance,
 } from '../../hooks/api';
-import { EMISSION_SYMBOL, PoolDeployment } from '../../hooks/types';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance } from '../../utils/formatter';
 import { bigintToInput, scaleInputToBigInt } from '../../utils/scval';
 import { getErrorFromSim } from '../../utils/txSim';
-import { AppImage as Image } from '../common/AppImage';
 import { AnvilAlert } from '../common/AnvilAlert';
 import { InputBar } from '../common/InputBar';
 import { InputButton } from '../common/InputButton';
@@ -42,7 +43,7 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
     useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserPoolData } = useBackstopPoolUser(poolMeta);
   const { data: lpTokenRes } = useTokenBalance(
@@ -52,8 +53,6 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
     // account is not needed for getting the LP token balance
     {} as Horizon.AccountResponse
   );
-  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
-  const isV21 = poolMeta?.deployment === PoolDeployment.V21;
 
   const [toDeposit, setToDeposit] = useState<string>('');
   const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
@@ -79,7 +78,9 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
   if (
     backstop === undefined ||
     backstopPoolData === undefined ||
-    backstopUserPoolData === undefined
+    backstopUserPoolData === undefined ||
+    backstopPoolData instanceof BackstopPoolV3 ||
+    backstopUserPoolData instanceof BackstopPoolUserV3
   ) {
     return <Skeleton />;
   }
@@ -150,7 +151,7 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
             }}
           >
             <InputBar
-              symbol={lpSymbol}
+              symbol={'BLND-USDC LP'}
               value={toDeposit}
               onValueChange={(v) => {
                 setToDeposit(v);
@@ -171,7 +172,7 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
                 onClick={() => handleSubmitTransaction(false)}
                 palette={theme.palette.backstop}
                 sx={{ minWidth: '108px', padding: '6px' }}
-                disabled={!isV21 || isSubmitDisabled}
+                disabled={isSubmitDisabled}
               >
                 Deposit
               </OpaqueButton>
@@ -199,22 +200,13 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
               onClick={() => handleSubmitTransaction(false)}
               palette={theme.palette.backstop}
               sx={{ minWidth: '108px', padding: '6px', width: '100%', marginTop: '6px' }}
-              disabled={!isV21 || isSubmitDisabled}
+              disabled={isSubmitDisabled}
             >
               Deposit
             </OpaqueButton>
           )}
         </Box>
-        {!isV21 && (
-          <AnvilAlert
-            severity={'warning'}
-            message={
-              "Depositing into the backstop is currently disabled due to an issue with Comet, the BLND-USDC LP token's underlying protocol."
-            }
-            extraContent={undefined}
-          />
-        )}
-        {isV21 && !isError && (
+        {!isError && (
           <TxOverview>
             <>
               <Value title="Amount to deposit" value={`${toDeposit ?? '0'} BLND-USDC LP`} />
@@ -242,7 +234,7 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
             </>
           </TxOverview>
         )}
-        {isV21 && isError && (
+        {isError && (
           <AnvilAlert severity={disabledType} message={reason} extraContent={extraContent} />
         )}
       </Section>

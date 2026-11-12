@@ -7,8 +7,8 @@ import {
   useTokenBalance,
   useTokenMetadata,
 } from '../../hooks/api';
-import { getPoolDeployment } from '../../hooks/types';
 import { toBalance, toCompactAddress } from '../../utils/formatter';
+import { getPoolDeploymentVersion } from '../../utils/version';
 import { ValueChange } from '../common/ValueChange';
 
 export interface BidBalanceChangeProps extends BoxProps {
@@ -27,7 +27,7 @@ export const BidBalanceChange: React.FC<BidBalanceChangeProps> = ({
   newPosition,
 }) => {
   const { data: horizonAccount } = useHorizonAccount();
-  const { data: backstop } = useBackstop(getPoolDeployment(pool.metadata));
+  const { data: backstop } = useBackstop(getPoolDeploymentVersion(pool));
 
   const { data: lpTokenBalance } = useTokenBalance(
     backstop?.backstopToken?.id ?? '',

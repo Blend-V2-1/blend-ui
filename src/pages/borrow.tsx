@@ -12,7 +12,7 @@ import { Section, SectionSize } from '../components/common/Section';
 import { StackedText } from '../components/common/StackedText';
 import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { useBackstop, usePool, usePoolMeta, usePoolOracle, useTokenMetadata } from '../hooks/api';
-import { EMISSION_SYMBOL, NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 import { estimateEmissionsApr } from '../utils/math';
 import { getTokenLinkFromReserve } from '../utils/token';
@@ -28,7 +28,7 @@ const Borrow: NextPage = () => {
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
   const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: tokenMetadata } = useTokenMetadata(safeAssetId);
 
   const reserve = pool?.reserves.get(safeAssetId);
@@ -121,7 +121,7 @@ const Borrow: NextPage = () => {
                 <RateDisplay
                   assetSymbol={tokenSymbol}
                   assetRate={reserve.estBorrowApy}
-                  emissionSymbol={EMISSION_SYMBOL}
+                  emissionSymbol={'BLND'}
                   emissionApr={emissionApr}
                   rateType={'charged'}
                   direction={'horizontal'}

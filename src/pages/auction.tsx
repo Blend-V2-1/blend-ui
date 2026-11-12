@@ -4,7 +4,6 @@ import {
   getAuctionsfromV2Events,
   PoolV1Event,
   PoolV2Event,
-  Version,
 } from '@blend-capital/blend-sdk';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -31,6 +30,7 @@ import {
   usePoolOracle,
 } from '../hooks/api';
 import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { Version } from '../utils/version';
 
 const Auction: NextPage = () => {
   const theme = useTheme();
@@ -42,7 +42,7 @@ const Auction: NextPage = () => {
   const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
   const { data: pool, isError: isPoolLoadingError } = usePool(poolMeta);
   const { isError: isOracleError } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   let { data: pastEvents, isError: isLongEventsError } = useAuctionEventsLongQuery(poolMeta);
   const {
     data: recentEvents,

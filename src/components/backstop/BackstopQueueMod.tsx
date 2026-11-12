@@ -1,6 +1,7 @@
-import { FixedMath, Version } from '@blend-capital/blend-sdk';
+import { BackstopPoolUserV3, BackstopPoolV3, FixedMath } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
+import { isV2Contracts, Version } from '../../utils/version';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
@@ -10,7 +11,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
   const theme = useTheme();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
+  const { data: backstop } = useBackstop(poolMeta?.version);
   const { data: backstopPoolData } = useBackstopPool(poolMeta);
   const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
 
@@ -19,6 +20,8 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
     backstop === undefined ||
     backstopUserData === undefined ||
     backstopPoolData === undefined ||
+    backstopUserData instanceof BackstopPoolUserV3 ||
+    backstopPoolData instanceof BackstopPoolV3 ||
     (backstopUserData.balance.totalQ4W == BigInt(0) &&
       backstopUserData.balance.unlockedQ4W == BigInt(0))
   ) {
@@ -29,7 +32,10 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
     Number(backstopPoolData.poolBalance.tokens) / Number(backstopPoolData.poolBalance.shares);
 
   const totalQ4WEntries = backstopUserData.balance.q4w.length;
-
+  const withdrawalVersion =
+    poolMeta.wasmHash === 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e'
+      ? Version.V2
+      : poolMeta.version;
   return (
     <Row>
       <Section width={SectionSize.FULL} sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -50,7 +56,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
         {backstopUserData.balance.unlockedQ4W != BigInt(0) && (
           <BackstopQueueItem
             key={0}
-            version={poolMeta.version}
+            version={withdrawalVersion}
             poolId={poolId}
             q4w={{ exp: BigInt(0), amount: backstopUserData.balance.unlockedQ4W }}
             inTokens={FixedMath.toFloat(backstopUserData.balance.unlockedQ4W) * sharesToTokens}
@@ -61,7 +67,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
           .sort((a, b) => Number(a.exp) - Number(b.exp))
           .map((q4w, index) => {
             let canUnqueue = false;
-            if (poolMeta.version === Version.V2) {
+            if (isV2Contracts(withdrawalVersion)) {
               // V2 unqueues from the most recently queued entry
               canUnqueue = totalQ4WEntries - 1 === index;
             } else {
@@ -71,7 +77,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
             return (
               <BackstopQueueItem
                 key={Number(q4w.exp)}
-                version={poolMeta.version}
+                version={withdrawalVersion}
                 poolId={poolId}
                 q4w={q4w}
                 inTokens={FixedMath.toFloat(q4w.amount) * sharesToTokens}

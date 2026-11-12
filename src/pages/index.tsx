@@ -1,57 +1,57 @@
-import { useTheme } from '@mui/material';
+import { Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Divider } from '../components/common/Divider';
 import { Row } from '../components/common/Row';
 import { SectionBase } from '../components/common/SectionBase';
 import { ToggleSlider } from '../components/common/ToggleSlider';
 import { MarketsList } from '../components/markets/MarketsList';
-import { useSettings } from '../contexts';
-import { PoolDeployment } from '../hooks/types';
+import { ENABLED_VERSIONS, LATEST_VERSION, Version } from '../utils/version';
+
+const DEFAULT_VERSION = ENABLED_VERSIONS.includes(Version.V3) ? Version.V3 : LATEST_VERSION;
 
 const Markets: NextPage = () => {
   const theme = useTheme();
-  const { isV2Enabled, isV21Enabled, lastPool } = useSettings();
-
-  const [deployment, setDeployment] = useState<PoolDeployment | undefined>(undefined);
-
-  useEffect(() => {
-    if ((isV2Enabled || isV21Enabled) && lastPool?.deployment) {
-      setDeployment(lastPool.deployment);
-    } else if (isV21Enabled) {
-      setDeployment(PoolDeployment.V21);
-    } else if (isV2Enabled) {
-      setDeployment(PoolDeployment.V2);
-    } else {
-      setDeployment(PoolDeployment.V1);
-    }
-  }, [isV2Enabled, isV21Enabled, lastPool]);
+  const [version, setVersion] = useState<Version>(DEFAULT_VERSION);
 
   return (
     <>
       <Row sx={{ alignItems: 'center' }}>
         <SectionBase type="alt" sx={{ margin: '6px', padding: '6px' }}>
-          Markets
+          <Typography component="h1" variant="h1">
+            Markets
+          </Typography>
         </SectionBase>
-        {(isV2Enabled || isV21Enabled) && deployment !== undefined && (
+        {ENABLED_VERSIONS.length > 1 && (
           <ToggleSlider
-            options={[
-              { optionName: PoolDeployment.V1, palette: theme.palette.primary },
-              ...(isV2Enabled
-                ? [{ optionName: PoolDeployment.V2, palette: theme.palette.backstop }]
-                : []),
-              ...(isV21Enabled
-                ? [{ optionName: PoolDeployment.V21, palette: theme.palette.positive }]
-                : []),
-            ]}
-            selected={deployment}
-            changeState={setDeployment}
-            sx={{ height: '24px', width: isV21Enabled ? '140px' : '80px', marginRight: '6px' }}
+            options={ENABLED_VERSIONS.map((option) => ({
+              optionName: option,
+              palette:
+                option === Version.V1
+                  ? theme.palette.primary
+                  : option === Version.V3
+                  ? theme.palette.positive
+                  : theme.palette.backstop,
+            }))}
+            selected={version}
+            changeState={setVersion}
+            sx={{
+              height: '24px',
+              width: `${44 * ENABLED_VERSIONS.length}px`,
+              marginRight: '6px',
+            }}
           />
         )}
       </Row>
+      <SectionBase type="alt" sx={{ margin: '6px', padding: '12px' }}>
+        <Typography component="p" variant="body2">
+          BLNT Trade is the interface for BLNT V3, a Blend-derived lending protocol on Stellar
+          designed for permissionless lending and real-world assets. Explore the Fixed Pool V3
+          and YieldBlent markets. V1/V2/V2.1 are Blend markets.
+        </Typography>
+      </SectionBase>
       <Divider />
-      <MarketsList deployment={deployment} />
+      <MarketsList version={version} />
     </>
   );
 };

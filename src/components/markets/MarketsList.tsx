@@ -1,11 +1,16 @@
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, BoxProps, Typography } from '@mui/material';
+import { Networks } from '@stellar/stellar-sdk';
 import { useEffect, useMemo, useState } from 'react';
 import { useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
-import { PoolDeployment } from '../../hooks/types';
 import theme from '../../theme';
 import { ReserveTokenMetadata } from '../../utils/token';
+import {
+  MAINNET_V1_REWARD_ZONE,
+  MAINNET_V2_REWARD_ZONE,
+  Version,
+} from '../../utils/version';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { MarketCard } from './MarketCard';
@@ -21,12 +26,12 @@ interface MarketData {
 }
 
 export interface MarketListProps extends BoxProps {
-  deployment: PoolDeployment | undefined;
+  version: Version | undefined;
 }
 
-export const MarketsList: React.FC<MarketListProps> = ({ deployment }) => {
+export const MarketsList: React.FC<MarketListProps> = ({ version }) => {
   const { blockedPools, configuredPools } = useSettings();
-  const { data: backstop } = useBackstop(deployment);
+  const { data: backstop } = useBackstop(version);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [marketsData, setMarketsData] = useState<Record<string, MarketData>>({});
@@ -43,20 +48,28 @@ export const MarketsList: React.FC<MarketListProps> = ({ deployment }) => {
     .filter((value, index, self) => self.indexOf(value) === index)
     .sort();
 
-  const rewardZone = useMemo(
-    () => [...(backstop?.config?.rewardZone ?? [])].reverse(),
-    [backstop?.config?.rewardZone]
-  );
+  const rewardZone = useMemo(() => {
+    const onChainRewardZone = [...(backstop?.config?.rewardZone ?? [])].reverse();
+    if (process.env.NEXT_PUBLIC_PASSPHRASE === Networks.TESTNET) return onChainRewardZone;
+    if (version === Version.V1) return MAINNET_V1_REWARD_ZONE;
+    if (version === Version.V2) return MAINNET_V2_REWARD_ZONE;
+    return onChainRewardZone;
+  }, [backstop?.config?.rewardZone, version]);
   const configuredPoolIds = useMemo(
-    () => configuredPools.filter((pool) => pool.deployment === deployment).map((pool) => pool.id),
-    [configuredPools, deployment]
+    () => configuredPools.filter((pool) => pool.version === version).map((pool) => pool.id),
+    [configuredPools, version]
+  );
+  const configuredPoolsOnly = process.env.NEXT_PUBLIC_CONFIGURED_POOLS_ONLY === 'true';
+  const visiblePoolIds = useMemo(
+    () =>
+      configuredPoolsOnly && configuredPoolIds.length > 0
+        ? configuredPoolIds
+        : Array.from(new Set([...rewardZone, ...configuredPoolIds])),
+    [rewardZone, configuredPoolIds, configuredPoolsOnly]
   );
   const safeRewardZone = useMemo(
-    () =>
-      Array.from(new Set([...rewardZone, ...configuredPoolIds])).filter(
-        (poolId) => !blockedPools.includes(poolId)
-      ),
-    [rewardZone, configuredPoolIds, blockedPools]
+    () => visiblePoolIds.filter((poolId) => !blockedPools.includes(poolId)),
+    [visiblePoolIds, blockedPools]
   );
 
   useEffect(() => {
@@ -113,13 +126,13 @@ export const MarketsList: React.FC<MarketListProps> = ({ deployment }) => {
     filters.selectedAssets,
   ]);
 
-  // Reset all state related to market data when deployment changes
+  // Reset all state related to market data when version changes
   useEffect(() => {
     setMarketsData({});
     setSortedPoolIds([]);
     setCurrentIndex(0);
     handleFilterChange('selectedAssets', []);
-  }, [deployment]);
+  }, [version]);
 
   // Handle pool data loading
   function handlePoolLoaded(

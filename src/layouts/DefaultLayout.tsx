@@ -4,9 +4,10 @@ import { ReactNode, useEffect } from 'react';
 import { OverlayModal } from '../components/common/OverlayModal';
 import { OverlayModalTOS } from '../components/common/OverlayModalTOS';
 import { Row } from '../components/common/Row';
-import { V21MainnetBanner } from '../components/common/V21MainnetBanner';
+import { V3CandidateBanner } from '../components/common/V3CandidateBanner';
 import { WalletWarning } from '../components/common/WalletWarning';
 import { NavBar } from '../components/nav/NavBar';
+import { PoolAccessBanner } from '../components/pool/PoolAccessBanner';
 import { useSettings, ViewType } from '../contexts';
 import { useWallet } from '../contexts/wallet';
 import { useFeeStats, usePoolMeta } from '../hooks/api';
@@ -18,7 +19,6 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
   const { poolId } = router.query;
   const safePoolId =
     typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : undefined;
-
   const { data: poolMeta } = usePoolMeta(safePoolId as string, safePoolId !== undefined);
   const { data: feeStats } = useFeeStats();
 
@@ -59,12 +59,13 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
       <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
         <Box />
         <Box component="main" sx={{ width: mainWidth, minWidth: '350px' }}>
-          <V21MainnetBanner />
+          <V3CandidateBanner />
           <NavBar />
           <Box sx={{ marginLeft: mainMargin, marginRight: mainMargin }}>
             <Row>
               <WalletWarning />
             </Row>
+            <PoolAccessBanner poolMeta={poolMeta} />
             {children}
             <OverlayModal />
             <OverlayModalTOS />

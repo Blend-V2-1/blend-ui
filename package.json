@@ -1,10 +1,10 @@
 {
-  "name": "blend-ui",
-  "version": "2.5.3",
+  "name": "blnt-ui",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3002",
     "dev:testnet": "TARGET_ENV=testnet node loadEnv.js && next dev",
     "build": "next build",
     "build:mainnet": "TARGET_ENV=production node loadEnv.js && next build",
@@ -13,7 +13,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@blend-capital/blend-sdk": "3.3.0",
+    "@blend-capital/blend-sdk": "file:../blnt-sdk-js",
     "@creit.tech/stellar-wallets-kit": "2.3.0",
     "@emotion/react": "^11.9.3",
     "@emotion/styled": "^11.9.3",

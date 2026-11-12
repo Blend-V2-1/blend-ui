@@ -1,15 +1,17 @@
 import {
   BackstopClaimV1Args,
   BackstopClaimV2Args,
+  Backstop,
   BackstopContractV1,
   BackstopContractV2,
+  BackstopPool,
   BackstopPoolEst,
+  BackstopPoolUser,
   BackstopPoolUserEst,
   ContractErrorType,
   FixedMath,
   parseError,
   parseResult,
-  Version,
 } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Tooltip, Typography } from '@mui/material';
@@ -18,7 +20,7 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { BackstopAPR } from '../components/backstop/BackstopAPR';
 import { BackstopQueueMod } from '../components/backstop/BackstopQueueMod';
-import { AnvilAlert } from '../components/common/AnvilAlert';
+import { BackstopV3View } from '../components/backstop/BackstopV3View';
 import { CustomButton } from '../components/common/CustomButton';
 import { Divider } from '../components/common/Divider';
 import { FlameIcon } from '../components/common/FlameIcon';
@@ -33,6 +35,7 @@ import { TooltipText } from '../components/common/TooltipText';
 import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { PoolExploreBar } from '../components/pool/PoolExploreBar';
 import { PoolHealthBanner } from '../components/pool/PoolHealthBanner';
+import { useSettings } from '../contexts/settings';
 import { useWallet } from '../contexts/wallet';
 import {
   useBackstop,
@@ -44,38 +47,37 @@ import {
   useSimulateOperation,
   useTokenBalance,
 } from '../hooks/api';
-import {
-  getBackstopId,
-  EMISSION_SYMBOL,
-  NOT_BLEND_POOL_ERROR_MESSAGE,
-  PoolDeployment,
-} from '../hooks/types';
+import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { PoolMeta } from '../hooks/types';
 import theme from '../theme';
 import { CometClient, estSingleSidedDeposit } from '../utils/comet';
 import { toBalance, toPercentage } from '../utils/formatter';
+import { BACKSTOP_IDS, isV2Contracts, Version } from '../utils/version';
 
-const Backstop: NextPage = () => {
-  const router = useRouter();
+const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
+  poolMeta,
+  safePoolId,
+}) => {
+  const { isV2Enabled } = useSettings();
   const { connected, walletAddress, backstopClaim, restore } = useWallet();
-
-  const { poolId } = router.query;
-  const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
-
-  const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
-  const { data: backstop } = useBackstop(poolMeta?.deployment);
-  const { data: backstopPoolData } = useBackstopPool(poolMeta);
-  const { data: userBackstopPoolData } = useBackstopPoolUser(poolMeta);
+  const usesV2Backstop =
+    isV2Contracts(poolMeta.version) ||
+    poolMeta.wasmHash === 'a41fc53d6753b6c04eb15b021c55052366a4c8e0e21bc72700f461264ec1350e';
+  const { data: loadedBackstop } = useBackstop(poolMeta.version);
+  const backstop = loadedBackstop as Backstop | undefined;
+  const isV21 = poolMeta.version === Version.V2_1;
+  const { data: emitterBackstop } = useEmitterBackstop(backstop, isV21);
+  const isV21MigrationPending = isV21 && backstop !== undefined && emitterBackstop !== backstop.id;
+  const { data: loadedBackstopPoolData } = useBackstopPool(poolMeta);
+  const backstopPoolData = loadedBackstopPoolData as BackstopPool | undefined;
+  const { data: loadedUserBackstopPoolData } = useBackstopPoolUser(poolMeta);
+  const userBackstopPoolData = loadedUserBackstopPoolData as BackstopPoolUser | undefined;
   const { data: horizonAccount } = useHorizonAccount();
   const { data: lpBalance } = useTokenBalance(
     backstop?.backstopToken?.id ?? '',
     undefined,
     horizonAccount
   );
-  const emissionSymbol = EMISSION_SYMBOL;
-  const lpSymbol = `${emissionSymbol}-USDC LP`;
-  const isV21 = poolMeta?.deployment === PoolDeployment.V21;
-  const { data: emitterBackstop } = useEmitterBackstop(backstop, isV21);
-  const isV21MigrationPending = isV21 && backstop !== undefined && emitterBackstop !== backstop.id;
 
   const backstopPoolEst =
     backstop !== undefined && backstopPoolData !== undefined
@@ -88,24 +90,26 @@ const Backstop: NextPage = () => {
       : undefined;
 
   const backstopDepositUSD =
-    backstopUserEst?.tokens && backstop?.backstopToken.lpTokenPrice
+    backstopUserEst?.tokens !== undefined && backstop?.backstopToken.lpTokenPrice !== undefined
       ? backstopUserEst?.tokens * backstop.backstopToken.lpTokenPrice
       : undefined;
 
   const lpBalanceUSD =
-    lpBalance && backstop?.backstopToken.lpTokenPrice
+    lpBalance !== undefined && backstop?.backstopToken.lpTokenPrice !== undefined
       ? (Number(lpBalance) / 1e7) * backstop.backstopToken.lpTokenPrice
       : undefined;
 
   let claimOp = '';
 
-  if (poolMeta?.version == Version.V2) {
+  if (isV2Enabled && usesV2Backstop) {
     const claimArgs: BackstopClaimV2Args = {
       from: walletAddress,
       pool_addresses: [safePoolId],
       min_lp_tokens_out: BigInt(0),
     };
-    let backstopContract = new BackstopContractV2(getBackstopId(poolMeta.deployment));
+    let backstopContract = new BackstopContractV2(
+      poolMeta.version === Version.V1 ? BACKSTOP_IDS[Version.V1] : BACKSTOP_IDS[poolMeta.version]
+    );
     claimOp =
       safePoolId && walletAddress !== '' && backstopContract
         ? backstopContract.claim(claimArgs)
@@ -180,7 +184,7 @@ const Backstop: NextPage = () => {
   const handleClaimEmissionsClick = async () => {
     if (connected && poolMeta && userBackstopPoolData) {
       let claimArgs: BackstopClaimV1Args | BackstopClaimV2Args;
-      if (poolMeta.version == Version.V2) {
+      if (isV2Enabled && usesV2Backstop) {
         claimArgs = {
           from: walletAddress,
           pool_addresses: [safePoolId],
@@ -221,7 +225,7 @@ const Backstop: NextPage = () => {
                   {toBalance(lpTokenEmissions)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                  {lpSymbol}
+                  BLND-USDC LP
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -263,7 +267,7 @@ const Backstop: NextPage = () => {
                   {toBalance(lpTokenEmissions)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                  {lpSymbol}
+                  BLND-USDC LP
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -361,10 +365,6 @@ const Backstop: NextPage = () => {
     }
   };
 
-  if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
-    return <NotPoolBar poolId={safePoolId} />;
-  }
-
   return (
     <>
       <PoolHealthBanner poolId={safePoolId} />
@@ -375,23 +375,6 @@ const Backstop: NextPage = () => {
         </SectionBase>
       </Row>
       <Divider />
-      {!isV21 && (
-        <Box
-          width={SectionSize.FULL}
-          sx={{
-            display: 'flex',
-            margin: '6px',
-          }}
-        >
-          <AnvilAlert
-            severity={'warning'}
-            message={
-              'Due to an issue with Comet, the underlying protocol of the BLND-USDC LP token, the backstop APR is incorrect.'
-            }
-            extraContent={undefined}
-          />
-        </Box>
-      )}
       <Row>
         <Section width={SectionSize.THIRD}>
           <BackstopAPR poolId={safePoolId} />
@@ -493,7 +476,7 @@ const Backstop: NextPage = () => {
           }}
         >
           <Typography variant="body2" sx={{ margin: '6px' }}>
-            Your {lpSymbol} Token Balance
+            Your BLND-USDC LP Token Balance
           </Typography>
           <Box
             sx={{
@@ -516,14 +499,14 @@ const Backstop: NextPage = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                 <Typography variant="h4" sx={{ marginRight: '6px' }}>
-                  {toBalance(lpBalance, 7)}
+                  {toBalance(connected ? lpBalance : BigInt(0), 7)}
                 </Typography>
                 <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                  {lpSymbol}
+                  BLND-USDC LP
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                {`$${toBalance(lpBalanceUSD)}`}
+                {`$${toBalance(connected ? lpBalanceUSD : 0)}`}
               </Typography>
             </Box>
           </Box>
@@ -539,7 +522,7 @@ const Backstop: NextPage = () => {
           >
             <LinkBox
               sx={{ width: SectionSize.TILE }}
-              to={{ pathname: '/backstop-token', query: { deployment: poolMeta?.deployment } }}
+              to={{ pathname: '/backstop-token', query: { version: poolMeta.version } }}
             >
               <OpaqueButton palette={theme.palette.primary} sx={{ width: '100%', padding: '6px' }}>
                 Manage
@@ -547,7 +530,7 @@ const Backstop: NextPage = () => {
             </LinkBox>
             <LinkBox
               sx={{ width: SectionSize.TILE }}
-              to={{ pathname: '/backstop-deposit', query: { poolId: poolId } }}
+              to={{ pathname: '/backstop-deposit', query: { poolId: safePoolId } }}
             >
               <OpaqueButton palette={theme.palette.backstop} sx={{ width: '100%', padding: '6px' }}>
                 Backstop Deposit
@@ -589,14 +572,14 @@ const Backstop: NextPage = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                     <Typography variant="h4" sx={{ marginRight: '6px' }}>
-                      {toBalance(backstopUserEst?.tokens)}
+                      {toBalance(connected ? backstopUserEst?.tokens : 0)}
                     </Typography>
                     <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                      {lpSymbol}
+                      BLND-USDC LP
                     </Typography>
                   </Box>
                   <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                    {`$${toBalance(backstopDepositUSD)}`}
+                    {`$${toBalance(connected ? backstopDepositUSD : 0)}`}
                   </Typography>
                 </Box>
               </Box>
@@ -604,7 +587,7 @@ const Backstop: NextPage = () => {
           </Row>
           <LinkBox
             sx={{ width: '100%', paddingRight: '12px' }}
-            to={{ pathname: 'backstop-q4w', query: { poolId: poolId } }}
+            to={{ pathname: 'backstop-q4w', query: { poolId: safePoolId } }}
           >
             <OpaqueButton
               palette={theme.palette.positive}
@@ -620,4 +603,20 @@ const Backstop: NextPage = () => {
   );
 };
 
-export default Backstop;
+const BackstopPage: NextPage = () => {
+  const router = useRouter();
+  const { poolId } = router.query;
+  const safePoolId = typeof poolId === 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
+  const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
+
+  if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
+    return <NotPoolBar poolId={safePoolId} />;
+  }
+  if (poolMeta?.version === Version.V3) {
+    return <BackstopV3View poolMeta={poolMeta} />;
+  }
+  if (poolMeta === undefined) return <></>;
+  return <LegacyBackstop poolMeta={poolMeta} safePoolId={safePoolId} />;
+};
+
+export default BackstopPage;

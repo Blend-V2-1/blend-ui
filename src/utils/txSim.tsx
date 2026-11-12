@@ -1,4 +1,4 @@
-import { ContractErrorType, parseError } from '@blend-capital/blend-sdk';
+import { ContractErrorType, parseError, Reserve } from '@blend-capital/blend-sdk';
 import { AlertColor } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { OpaqueButton } from '../components/common/OpaqueButton';
@@ -92,6 +92,59 @@ export function getErrorFromSim(
     return errorProps;
   }
   return errorProps;
+}
+
+export function getReserveDeauthorizedError(reserve: Reserve | undefined): SubmitError | undefined {
+  if (!reserve?.isPoolDeauthorized) {
+    return undefined;
+  }
+  return {
+    isError: true,
+    isSubmitDisabled: true,
+    isMaxDisabled: true,
+    reason:
+      'The asset issuer has deauthorized this pool. Supply, withdrawal, borrowing, repayment, and flash loans for this reserve are unavailable until the issuer reauthorizes it.',
+    disabledType: 'warning',
+  };
+}
+
+export function getPoolPermissionError(
+  permissioned: boolean,
+  permissions: number | undefined,
+  required: number,
+  loading: boolean,
+  failed: boolean,
+  action: string
+): SubmitError | undefined {
+  if (!permissioned) return undefined;
+  if (failed) {
+    return {
+      isError: true,
+      isSubmitDisabled: true,
+      isMaxDisabled: true,
+      reason: 'The pool access controller is unavailable. Permission checks fail closed.',
+      disabledType: 'warning',
+    };
+  }
+  if (loading || permissions === undefined) {
+    return {
+      isError: true,
+      isSubmitDisabled: true,
+      isMaxDisabled: true,
+      reason: 'Loading pool permissions...',
+      disabledType: 'info',
+    };
+  }
+  if ((permissions & required) !== required) {
+    return {
+      isError: true,
+      isSubmitDisabled: true,
+      isMaxDisabled: true,
+      reason: `Your access controller permissions do not allow ${action}.`,
+      disabledType: 'warning',
+    };
+  }
+  return undefined;
 }
 
 export interface SubmitError {

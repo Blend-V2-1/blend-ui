@@ -1,8 +1,8 @@
-import { Version } from '@blend-capital/blend-sdk';
 import { Box, IconButton } from '@mui/material';
+import Image from 'next/image';
 import { ViewType, useSettings } from '../../contexts';
 import { useBackstop } from '../../hooks/api';
-import { AppImage as Image } from '../common/AppImage';
+import { Version } from '../../utils/version';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { SectionBase } from '../common/SectionBase';
@@ -19,9 +19,9 @@ export const NavBar = () => {
   return (
     <Row sx={{ height: '62px' }}>
       <SectionBase sx={{ width: '50px', margin: '6px' }}>
-        <a href="https://blend.capital" target="_blank" rel="noreferrer">
+        <a href="https://blnt.trade" target="_blank" rel="noreferrer">
           <IconButton sx={{ width: '79%', height: '79%', margin: '6px' }}>
-            <Image src="/icons/blend_logo.svg" layout="fill" alt="Blend Logo" />
+            <Image src="/icon-192x192.png" fill alt="BLNT Logo" />
           </IconButton>
         </a>
       </SectionBase>

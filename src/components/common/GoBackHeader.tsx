@@ -1,6 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { useSettings } from '../../contexts';
-import { PoolDeployment } from '../../hooks/types';
+import { Version } from '../../utils/version';
 import { PoolHeader } from '../pool/PoolHeader';
 import { GoBackButton } from './GoBackButton';
 import { Section, SectionSize } from './Section';
@@ -13,11 +13,11 @@ export const GoBackHeader: React.FC<GoBackHeaderProps> = ({ poolId }) => {
   const { trackedPools } = useSettings();
   const trackedPool = trackedPools.find((pool) => pool.id === poolId);
   const name = trackedPool?.name ?? 'Unkown';
-  const deployment = trackedPool?.deployment ?? PoolDeployment.V1;
+  const version = trackedPool?.version ?? Version.V1;
   return (
     <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
       <GoBackButton />
-      <PoolHeader name={name} poolAddress={poolId} version={deployment} />
+      <PoolHeader name={name} poolAddress={poolId} version={version} />
     </Section>
   );
 };

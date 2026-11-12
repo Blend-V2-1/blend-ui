@@ -1,9 +1,10 @@
-import { Network, Version } from '@blend-capital/blend-sdk';
+import { Network } from '@blend-capital/blend-sdk';
 import { useMediaQuery, useTheme } from '@mui/material';
 import { Horizon, rpc } from '@stellar/stellar-sdk';
 import React, { useContext, useMemo, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
-import { getPoolDeployment, PoolDeployment, PoolMeta } from '../hooks/types';
+import { PoolMeta } from '../hooks/types';
+import { Version } from '../utils/version';
 
 const DEFAULT_RPC = process.env.NEXT_PUBLIC_RPC_URL || 'https://soroban-testnet.stellar.org';
 const DEFAULT_HORIZON =
@@ -21,7 +22,6 @@ export interface TrackedPool {
   id: string;
   name: string;
   version: Version;
-  deployment: PoolDeployment;
 }
 
 export interface NetworkUrls {
@@ -49,7 +49,7 @@ export interface ISettingsContext {
   setShowJoinPool: (showJoinPool: boolean) => void;
   blockedPools: string[];
   isV2Enabled: boolean;
-  isV21Enabled: boolean;
+  isV3Enabled: boolean;
 }
 
 const SettingsContext = React.createContext<ISettingsContext | undefined>(undefined);
@@ -71,9 +71,7 @@ export const SettingsProvider = ({ children = null as any }) => {
 
   const lastPool = useMemo(() => {
     try {
-      if (!lastPoolString) return undefined;
-      const pool = JSON.parse(lastPoolString) as TrackedPool;
-      return { ...pool, deployment: getPoolDeployment(pool) ?? PoolDeployment.V1 };
+      return lastPoolString ? (JSON.parse(lastPoolString) as TrackedPool) : undefined;
     } catch (e) {
       console.warn('Failed to parse lastPool:', e);
       return undefined;
@@ -81,10 +79,7 @@ export const SettingsProvider = ({ children = null as any }) => {
   }, [lastPoolString]);
   const storedPools = useMemo(() => {
     try {
-      return (JSON.parse(trackedPoolsString ?? '[]') as TrackedPool[]).map((pool) => ({
-        ...pool,
-        deployment: getPoolDeployment(pool) ?? PoolDeployment.V1,
-      }));
+      return JSON.parse(trackedPoolsString ?? '[]') as TrackedPool[];
     } catch (e) {
       console.warn('Failed to parse trackedPools:', e);
       return [];
@@ -92,13 +87,7 @@ export const SettingsProvider = ({ children = null as any }) => {
   }, [trackedPoolsString]);
   const configuredPools = useMemo(() => {
     try {
-      return (JSON.parse(process.env.NEXT_PUBLIC_CONFIGURED_POOLS ?? '[]') as TrackedPool[]).map(
-        (pool) => ({
-          ...pool,
-          version: pool.version ?? Version.V2,
-          deployment: pool.deployment ?? PoolDeployment.V21,
-        })
-      );
+      return JSON.parse(process.env.NEXT_PUBLIC_CONFIGURED_POOLS ?? '[]') as TrackedPool[];
     } catch (e) {
       console.warn('Failed to parse NEXT_PUBLIC_CONFIGURED_POOLS:', e);
       return [];
@@ -134,7 +123,7 @@ export const SettingsProvider = ({ children = null as any }) => {
   );
 
   const isV2Enabled = process.env.NEXT_PUBLIC_BACKSTOP_V2 !== undefined;
-  const isV21Enabled = process.env.NEXT_PUBLIC_BACKSTOP_V21 !== undefined;
+  const isV3Enabled = process.env.NEXT_PUBLIC_BACKSTOP_V3 !== undefined;
 
   let viewType: ViewType;
   if (mobile) viewType = ViewType.MOBILE;
@@ -166,28 +155,17 @@ export const SettingsProvider = ({ children = null as any }) => {
     if (index !== -1) {
       if (
         storedPools[index].version !== poolMeta.version ||
-        storedPools[index].deployment !== poolMeta.deployment ||
         storedPools[index].name !== poolMeta.name
       ) {
         const updated = [...storedPools];
-        updated[index] = {
-          id: poolMeta.id,
-          name: poolMeta.name,
-          version: poolMeta.version,
-          deployment: poolMeta.deployment,
-        };
+        updated[index] = { id: poolMeta.id, name: poolMeta.name, version: poolMeta.version };
         setTrackedPoolsString(JSON.stringify(updated));
       }
     } else {
       setTrackedPoolsString(
         JSON.stringify([
           ...storedPools,
-          {
-            id: poolMeta.id,
-            name: poolMeta.name,
-            version: poolMeta.version,
-            deployment: poolMeta.deployment,
-          },
+          { id: poolMeta.id, name: poolMeta.name, version: poolMeta.version },
         ])
       );
     }
@@ -202,12 +180,7 @@ export const SettingsProvider = ({ children = null as any }) => {
 
   function setLastPool(poolMeta: PoolMeta) {
     setLastPoolString(
-      JSON.stringify({
-        id: poolMeta.id,
-        name: poolMeta.name,
-        version: poolMeta.version,
-        deployment: poolMeta.deployment,
-      })
+      JSON.stringify({ id: poolMeta.id, name: poolMeta.name, version: poolMeta.version })
     );
   }
 
@@ -232,7 +205,7 @@ export const SettingsProvider = ({ children = null as any }) => {
         setShowJoinPool,
         blockedPools,
         isV2Enabled,
-        isV21Enabled,
+        isV3Enabled,
       }}
     >
       {children}

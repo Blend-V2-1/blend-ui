@@ -1,4 +1,4 @@
-import { BackstopContractV1, PoolBackstopActionArgs, Q4W, Version } from '@blend-capital/blend-sdk';
+import { BackstopContractV1, PoolBackstopActionArgs, Q4W } from '@blend-capital/blend-sdk';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Box, CircularProgress, SxProps, Theme, Tooltip, Typography } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
@@ -6,9 +6,9 @@ import { useEffect, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolMeta, useSimulateOperation } from '../../hooks/api';
-import { getBackstopId, EMISSION_SYMBOL } from '../../hooks/types';
 import theme from '../../theme';
 import { toBalance, toTimeSpan } from '../../utils/formatter';
+import { BACKSTOP_IDS, isV2Contracts, Version } from '../../utils/version';
 import { Icon } from '../common/Icon';
 import { OpaqueButton } from '../common/OpaqueButton';
 import { PoolComponentProps } from '../common/PoolComponentProps';
@@ -32,12 +32,8 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
   const { viewType } = useSettings();
 
   const { data: poolMeta } = usePoolMeta(poolId);
-  const lpSymbol = `${EMISSION_SYMBOL}-USDC LP`;
 
-  const backstop =
-    poolMeta?.version === Version.V2
-      ? new BackstopContractV1(getBackstopId(poolMeta.deployment))
-      : new BackstopContractV1(process.env.NEXT_PUBLIC_BACKSTOP ?? '');
+  const backstop = new BackstopContractV1(BACKSTOP_IDS[poolMeta?.version ?? Version.V1]);
   const actionArgs: PoolBackstopActionArgs = {
     from: walletAddress,
     pool_address: poolId,
@@ -88,9 +84,9 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
   const queueItemActionButton = (sx: SxProps<Theme>) => {
     const needsTooltip = !enabled || isRestore;
     const tooltipMessage = !enabled
-      ? poolMeta?.version === Version.V2
-        ? 'You can only unqueue the oldest withdrawal'
-        : 'You can only unqueue the most recent withdrawal'
+      ? isV2Contracts(version)
+        ? 'You can only unqueue the most recent withdrawal'
+        : 'You can only unqueue the oldest withdrawal'
       : 'This transaction ran into expired entries which need to be restored before proceeding.';
 
     return needsTooltip ? (
@@ -190,7 +186,7 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
                 {toBalance(inTokens)}
               </Typography>
               <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                {lpSymbol}
+                BLND-USDC LP
               </Typography>
             </Box>
             <Typography variant="h4" sx={{ marginRight: '6px' }}>
