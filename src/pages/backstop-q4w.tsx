@@ -4,7 +4,7 @@ import {
   BackstopPoolEst,
   BackstopPoolUser,
   BackstopPoolUserEst,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';

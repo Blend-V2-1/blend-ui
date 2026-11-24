@@ -6,7 +6,7 @@ import {
   PositionsEstimate,
   RequestType,
   SubmitArgs,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';

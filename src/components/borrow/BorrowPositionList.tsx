@@ -1,4 +1,4 @@
-import { PositionsEstimate } from '@blend-capital/blend-sdk';
+import { PositionsEstimate } from '@blnt-protocol/blnt-sdk';
 import { Box, Typography } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
 import { usePool, usePoolMeta, usePoolOracle, usePoolUser } from '../../hooks/api';

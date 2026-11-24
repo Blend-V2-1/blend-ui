@@ -9,7 +9,7 @@ import {
   PoolEstimate,
   parseError,
   parseResult,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Typography } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';

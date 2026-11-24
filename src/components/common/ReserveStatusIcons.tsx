@@ -1,7 +1,7 @@
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, BoxProps, Tooltip, useTheme } from '@mui/material';
-import { Reserve } from '@blend-capital/blend-sdk';
+import { Reserve } from '@blnt-protocol/blnt-sdk';
 import { useTokenMetadata } from '../../hooks/api';
 import { ReserveHealthIcon } from './ReserveHealthIcon';
 

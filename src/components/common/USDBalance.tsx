@@ -1,4 +1,4 @@
-import { FixedMath } from '@blend-capital/blend-sdk';
+import { FixedMath } from '@blnt-protocol/blnt-sdk';
 import { Tooltip } from '@mui/material';
 import { toBalance } from '../../utils/formatter';
 

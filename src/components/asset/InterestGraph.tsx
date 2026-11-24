@@ -1,4 +1,4 @@
-import { FixedMath, Reserve } from '@blend-capital/blend-sdk';
+import { FixedMath, Reserve } from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { axisClasses, ChartsReferenceLine } from '@mui/x-charts';
 import { LineChart } from '@mui/x-charts/LineChart';

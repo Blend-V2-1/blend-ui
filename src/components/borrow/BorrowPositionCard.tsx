@@ -1,4 +1,4 @@
-import { Reserve } from '@blend-capital/blend-sdk';
+import { Reserve } from '@blnt-protocol/blnt-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useRouter } from 'next/router';

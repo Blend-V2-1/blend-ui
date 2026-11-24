@@ -12,7 +12,7 @@ import {
   FixedMath,
   parseError,
   parseResult,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { rpc, scValToBigInt, xdr } from '@stellar/stellar-sdk';
@@ -155,7 +155,7 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
             minLPTokenAmount: BigInt(0),
             user: backstop.id,
           })
-          .toXDR('base64')
+          .toXdr('base64')
       : undefined;
 
   const { data: mintSimResult, refetch: refetchMintSim } = useSimulateOperation(
@@ -171,7 +171,7 @@ const LegacyBackstop: React.FC<{ poolMeta: PoolMeta; safePoolId: string }> = ({
     );
   } else if (mintSimResult && rpc.Api.isSimulationSuccess(mintSimResult)) {
     const result = parseResult(mintSimResult, (xdrString: string) => {
-      return scValToBigInt(xdr.ScVal.fromXDR(xdrString, 'base64'));
+      return scValToBigInt(xdr.ScVal.fromXdr(xdrString, 'base64'));
     });
     lpTokenEmissions = result === undefined ? 0 : FixedMath.toFloat(result, 7);
   }

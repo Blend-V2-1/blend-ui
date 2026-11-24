@@ -1,4 +1,4 @@
-import { BackstopAssetV3, BackstopPoolV3, BackstopTierV3 } from '@blend-capital/blend-sdk';
+import { BackstopAssetV3, BackstopPoolV3, BackstopTierV3 } from '@blnt-protocol/blnt-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, IconButton, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';

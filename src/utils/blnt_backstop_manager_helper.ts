@@ -1,4 +1,4 @@
-import { Network } from '@blend-capital/blend-sdk';
+import { Network } from '@blnt-protocol/blnt-sdk';
 import {
   Account,
   Contract,

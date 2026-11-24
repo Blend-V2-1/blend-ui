@@ -1,4 +1,4 @@
-import { PoolEstimate } from '@blend-capital/blend-sdk';
+import { PoolEstimate } from '@blnt-protocol/blnt-sdk';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Collapse, Typography, useTheme } from '@mui/material';

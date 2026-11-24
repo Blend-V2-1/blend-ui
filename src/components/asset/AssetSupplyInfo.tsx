@@ -1,4 +1,4 @@
-import { FixedMath, ReserveConfigV2 } from '@blend-capital/blend-sdk';
+import { FixedMath, ReserveConfigV2 } from '@blnt-protocol/blnt-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import Circle from '@mui/icons-material/Circle';
 import { Box, Typography, useTheme } from '@mui/material';

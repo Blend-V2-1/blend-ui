@@ -1,4 +1,4 @@
-import { ContractErrorType, parseError, Reserve } from '@blend-capital/blend-sdk';
+import { ContractErrorType, parseError, Reserve } from '@blnt-protocol/blnt-sdk';
 import { AlertColor } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';
 import { OpaqueButton } from '../components/common/OpaqueButton';

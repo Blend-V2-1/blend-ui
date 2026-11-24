@@ -1,4 +1,4 @@
-import { ReserveConfigV2 } from '@blend-capital/blend-sdk';
+import { ReserveConfigV2 } from '@blnt-protocol/blnt-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, ButtonBase, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';

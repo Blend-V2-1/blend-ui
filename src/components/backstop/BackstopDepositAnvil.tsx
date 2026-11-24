@@ -5,7 +5,7 @@ import {
   BackstopPoolV3,
   parseResult,
   PoolBackstopActionArgs,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Horizon, rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';

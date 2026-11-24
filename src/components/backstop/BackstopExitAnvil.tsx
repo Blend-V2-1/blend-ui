@@ -1,4 +1,4 @@
-import { BackstopTierV3 } from '@blend-capital/blend-sdk';
+import { BackstopTierV3 } from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Asset, rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';

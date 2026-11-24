@@ -1,4 +1,4 @@
-import { PoolMetadata } from '@blend-capital/blend-sdk';
+import { PoolMetadata } from '@blnt-protocol/blnt-sdk';
 import { Version } from '../utils/version';
 
 export interface PoolMeta extends PoolMetadata {

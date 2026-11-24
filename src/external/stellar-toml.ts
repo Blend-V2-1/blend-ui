@@ -1,4 +1,4 @@
-import { TokenMetadata } from '@blend-capital/blend-sdk';
+import { TokenMetadata } from '@blnt-protocol/blnt-sdk';
 import { Horizon, StellarToml } from '@stellar/stellar-sdk';
 
 export type TomlMetadata = {

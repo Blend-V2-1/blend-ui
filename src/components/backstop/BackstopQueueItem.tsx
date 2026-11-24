@@ -1,4 +1,4 @@
-import { BackstopContractV1, PoolBackstopActionArgs, Q4W } from '@blend-capital/blend-sdk';
+import { BackstopContractV1, PoolBackstopActionArgs, Q4W } from '@blnt-protocol/blnt-sdk';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Box, CircularProgress, SxProps, Theme, Tooltip, Typography } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';

@@ -1,4 +1,4 @@
-import { AuctionType, Pool, PoolUser, Positions } from '@blend-capital/blend-sdk';
+import { AuctionType, Pool, PoolUser, Positions } from '@blnt-protocol/blnt-sdk';
 import { BoxProps } from '@mui/material';
 import {
   useBackstop,

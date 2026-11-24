@@ -1,4 +1,4 @@
-import { Backstop, BackstopPool, BackstopPoolEst } from '@blend-capital/blend-sdk';
+import { Backstop, BackstopPool, BackstopPoolEst } from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';

@@ -1,4 +1,4 @@
-import { Reserve, TokenMetadata } from '@blend-capital/blend-sdk';
+import { Reserve, TokenMetadata } from '@blnt-protocol/blnt-sdk';
 
 export interface ReserveTokenMetadata extends TokenMetadata {
   assetId: string;

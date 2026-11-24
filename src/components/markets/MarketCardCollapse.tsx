@@ -1,4 +1,4 @@
-import { Pool, PoolEstimate, PoolOracle } from '@blend-capital/blend-sdk';
+import { Pool, PoolEstimate, PoolOracle } from '@blnt-protocol/blnt-sdk';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';

@@ -1,4 +1,4 @@
-import { AuctionType, Pool, ScaledAuction } from '@blend-capital/blend-sdk';
+import { AuctionType, Pool, ScaledAuction } from '@blnt-protocol/blnt-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useMemo } from 'react';
