@@ -1,4 +1,4 @@
-import type { Version as SdkVersion } from '@blend-capital/blend-sdk';
+import type { Version as SdkVersion } from '@blnt-protocol/blnt-sdk';
 
 /**
  * Blend deployments supported by the UI. V2.1 runs the same contracts as V2 with its own

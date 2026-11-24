@@ -1,4 +1,4 @@
-import { BackstopPoolV3, BackstopTierV3, FixedMath, PoolEstimate } from '@blend-capital/blend-sdk';
+import { BackstopPoolV3, BackstopTierV3, FixedMath, PoolEstimate } from '@blnt-protocol/blnt-sdk';
 import {
   useBackstop,
   useBackstopPool,

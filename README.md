@@ -9,15 +9,12 @@ lending protocol derived from Blend and designed to support real-world assets.
 
 The Blend UI has network specific configurations and build commands, which all export the UI to `out/`.
 
-This interface consumes the adjacent `blnt-sdk-js` checkout. Build that SDK
-before installing or running the UI:
+This interface consumes the published `@blnt-protocol/blnt-sdk` package. With
+Node.js 22.12.0 or newer installed, install the locked dependencies from the
+repository root:
 
 ```bash
-cd ../blnt-sdk-js
-npm install
-npm run build
-cd ../blend-ui
-npm install
+npm ci
 ```
 
 ### Local development

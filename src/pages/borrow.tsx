@@ -1,4 +1,4 @@
-import { FixedMath } from '@blend-capital/blend-sdk';
+import { FixedMath } from '@blnt-protocol/blnt-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Link, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';

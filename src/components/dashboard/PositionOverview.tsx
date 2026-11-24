@@ -5,7 +5,7 @@ import {
   PoolClaimArgs,
   PoolContractV1,
   PositionsEstimate,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, SxProps, Theme, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';

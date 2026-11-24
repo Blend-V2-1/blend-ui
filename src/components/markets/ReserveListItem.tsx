@@ -1,4 +1,4 @@
-import { Reserve } from '@blend-capital/blend-sdk';
+import { Reserve } from '@blnt-protocol/blnt-sdk';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
 import * as formatter from '../../utils/formatter';

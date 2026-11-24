@@ -14,7 +14,7 @@ import {
   PoolEstimate,
   activeBackstopTierSharesV3,
   annualizedBackstopEmissionV3,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import { estSingleSidedDeposit } from './comet';
 
 export interface BackstopPoolMetrics {

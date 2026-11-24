@@ -1,4 +1,4 @@
-import { Auction, AuctionType, Pool } from '@blend-capital/blend-sdk';
+import { Auction, AuctionType, Pool } from '@blnt-protocol/blnt-sdk';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { Box, Collapse, Typography, useTheme } from '@mui/material';
 import { useState } from 'react';

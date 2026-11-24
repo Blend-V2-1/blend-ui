@@ -1,4 +1,4 @@
-import { BackstopPoolUserV3, BackstopPoolV3, FixedMath } from '@blend-capital/blend-sdk';
+import { BackstopPoolUserV3, BackstopPoolV3, FixedMath } from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
 import { isV2Contracts, Version } from '../../utils/version';

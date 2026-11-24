@@ -25,30 +25,15 @@ jobs:
         with:
           path: blnt-ui
 
-      - name: Checkout SDK
-        uses: actions/checkout@v4
-        with:
-          repository: BLNT-Protocol/blnt-sdk-js
-          path: blnt-sdk-js
-          persist-credentials: false
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.12.0'
           cache: npm
-          cache-dependency-path: |
-            blnt-sdk-js/package-lock.json
-            blnt-ui/package-lock.json
+          cache-dependency-path: blnt-ui/package-lock.json
 
       - name: Set up npm
         run: npm install --global npm@11.13.0
-
-      - name: Install and build SDK
-        working-directory: blnt-sdk-js
-        run: |
-          npm ci
-          npm run build
 
       - name: Install and build mainnet UI
         working-directory: blnt-ui

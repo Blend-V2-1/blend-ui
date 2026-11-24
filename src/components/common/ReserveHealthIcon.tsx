@@ -1,6 +1,6 @@
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import { Box, BoxProps, Tooltip, useTheme } from '@mui/material';
-import { FixedMath } from '@blend-capital/blend-sdk';
+import { FixedMath } from '@blnt-protocol/blnt-sdk';
 
 const HEALTHY_B_RATE = BigInt('1000000000000');
 const MIN_OPERATIONAL_B_RATE = BigInt('100000000000');

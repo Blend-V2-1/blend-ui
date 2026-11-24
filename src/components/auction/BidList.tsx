@@ -1,4 +1,4 @@
-import { Pool } from '@blend-capital/blend-sdk';
+import { Pool } from '@blnt-protocol/blnt-sdk';
 import { Box, BoxProps, Typography } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
 import { BidListItem } from './BidListItem';

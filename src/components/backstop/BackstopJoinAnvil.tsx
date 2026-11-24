@@ -1,4 +1,4 @@
-import { BackstopTierV3, parseResult } from '@blend-capital/blend-sdk';
+import { BackstopTierV3, parseResult } from '@blnt-protocol/blnt-sdk';
 import { LoopOutlined } from '@mui/icons-material';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Asset, rpc, scValToBigInt, xdr } from '@stellar/stellar-sdk';
@@ -267,7 +267,7 @@ export const BackstopJoinAnvil: React.FC<{
             setSimResponse(sim);
             if (rpc.Api.isSimulationSuccess(sim)) {
               let result = parseResult(sim, (xdrString: string) => {
-                return scValToBigInt(xdr.ScVal.fromXDR(xdrString, 'base64'));
+                return scValToBigInt(xdr.ScVal.fromXdr(xdrString, 'base64'));
               });
               let resultAsNumber = Number(result ?? 0) / 10 ** decimals;
               let toMintMin = resultAsNumber - resultAsNumber * slippageAsNum;

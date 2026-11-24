@@ -1,4 +1,4 @@
-import { Reserve } from '@blend-capital/blend-sdk';
+import { Reserve } from '@blnt-protocol/blnt-sdk';
 import { MenuItem, Typography } from '@mui/material';
 import React from 'react';
 import { useTokenMetadata } from '../../hooks/api';

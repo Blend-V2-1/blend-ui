@@ -1,4 +1,4 @@
-import { FixedMath, PoolEstimate, PositionsEstimate } from '@blend-capital/blend-sdk';
+import { FixedMath, PoolEstimate, PositionsEstimate } from '@blnt-protocol/blnt-sdk';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { Box, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';

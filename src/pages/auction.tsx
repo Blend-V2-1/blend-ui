@@ -4,7 +4,7 @@ import {
   getAuctionsfromV2Events,
   PoolV1Event,
   PoolV2Event,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WarningIcon from '@mui/icons-material/Warning';
 import { Box, Typography, useTheme } from '@mui/material';

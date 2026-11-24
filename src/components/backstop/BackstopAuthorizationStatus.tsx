@@ -1,4 +1,4 @@
-import { BackstopTierPoolV3 } from '@blend-capital/blend-sdk';
+import { BackstopTierPoolV3 } from '@blnt-protocol/blnt-sdk';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { Box, BoxProps, Tooltip, Typography, useTheme } from '@mui/material';
 

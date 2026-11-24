@@ -8,7 +8,7 @@ import {
   parseResult,
   Q4WV3,
   TierBackstopActionArgsV3,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { rpc } from '@stellar/stellar-sdk';

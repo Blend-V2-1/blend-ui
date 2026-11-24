@@ -8,7 +8,7 @@ import {
   RequestType,
   RESERVE_BORROW_ALLOWED,
   SubmitArgs,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { Asset, rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';

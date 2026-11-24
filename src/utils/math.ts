@@ -5,7 +5,7 @@ import {
   ReserveData,
   ReserveV1,
   ReserveV2,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 
 /**
  * Estimate the emissions apr for a reserve

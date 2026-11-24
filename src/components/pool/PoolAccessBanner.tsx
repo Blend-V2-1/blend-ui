@@ -4,7 +4,7 @@ import {
   BACKSTOP_DEPOSIT_ALLOWED,
   RESERVE_BORROW_ALLOWED,
   RESERVE_SUPPLY_ALLOWED,
-} from '@blend-capital/blend-sdk';
+} from '@blnt-protocol/blnt-sdk';
 import { useWallet } from '../../contexts/wallet';
 import { usePoolPermissions } from '../../hooks/api';
 import { PoolMeta } from '../../hooks/types';

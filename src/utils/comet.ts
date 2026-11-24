@@ -1,4 +1,4 @@
-import { BackstopToken, FixedMath } from '@blend-capital/blend-sdk';
+import { BackstopToken, FixedMath } from '@blnt-protocol/blnt-sdk';
 import { Contract, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 
 /**

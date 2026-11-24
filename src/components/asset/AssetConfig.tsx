@@ -1,4 +1,4 @@
-import { I128MAX, ReserveConfigV2 } from '@blend-capital/blend-sdk';
+import { I128MAX, ReserveConfigV2 } from '@blnt-protocol/blnt-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
 import { usePool, usePoolMeta, usePoolOracle } from '../../hooks/api';

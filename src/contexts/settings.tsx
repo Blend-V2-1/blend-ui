@@ -1,4 +1,4 @@
-import { Network } from '@blend-capital/blend-sdk';
+import { Network } from '@blnt-protocol/blnt-sdk';
 import { useMediaQuery, useTheme } from '@mui/material';
 import { Horizon, rpc } from '@stellar/stellar-sdk';
 import React, { useContext, useMemo, useState } from 'react';

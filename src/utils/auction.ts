@@ -1,4 +1,4 @@
-import { AuctionData, AuctionType, FixedMath, Pool, PoolOracle } from '@blend-capital/blend-sdk';
+import { AuctionData, AuctionType, FixedMath, Pool, PoolOracle } from '@blnt-protocol/blnt-sdk';
 
 /**
  * The auction normalized to underlying assets and their oracle values. The underlying assets are calculated based
